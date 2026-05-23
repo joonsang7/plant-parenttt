@@ -8,5 +8,6 @@
 	<classpathentry kind="src" path="src"/>
 	<classpathentry kind="lib" path="/Users/leejoonsang/git/plant-parent/src/org.eclipse.paho.client.mqttv3-1.2.5.jar"/>
 	<classpathentry kind="lib" path="/Users/leejoonsang/git/org.eclipse.paho.client.mqttv3-1.2.5.jar"/>
+	<classpathentry kind="lib" path="C:/Users/user/git/plant-parenttt/[안전폴더]paho.mqtt.java-1.2.5/paho.mqtt.java-1.2.5/paho.mqtt.java-1.2.5.zip"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

@@ -1,1 +1,15 @@
+# Eclipse
 /.metadata/
+.classpath
+.project
+.settings/
+bin/
+
+# Maven
+target/
+
+# IntelliJ IDEA
+.idea/
+*.iml
+
+.lck
