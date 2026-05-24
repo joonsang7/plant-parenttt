@@ -11,7 +11,7 @@ public interface MoistureSensor {
     /**
      * 토양 수분 ADC 값을 반환한다.
      *
-     * @return 0~1023 범위의 ADC 값 (높을수록 건조)
+     * @return 0~1023 범위의 ADC 값 (높을수록 건조) 
      */
     int readValue();
 
