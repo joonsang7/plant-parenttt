@@ -65,7 +65,7 @@ public class ArduinoMoistureSensor implements MoistureSensor {
     public String getSensorName() { return sensorName; }
 
 
-    
+
     /**
      * MQTT로 수신된 최신 ADC 값을 반환한다.
      * 브로커 연결에 실패한 경우 테스트용 랜덤 값(0~1023)을 반환한다.
@@ -80,7 +80,7 @@ public class ArduinoMoistureSensor implements MoistureSensor {
 
     /**
      * 센서가 흙에 꽂혀 있는지 판단한다.
-     * 용량성 센서는 공기 중에서 ADC 값이 AIR_THRESHOLD(900) 이상으로 올라간다.
+     * 용량성 센서는 공기 중에서 ADC 값이 AIR_THRESHOLD(900) 이상으로 올라가므로 이를 기준으로 판단!
      *
      * @return 정상 삽입 상태이면 true
      */
