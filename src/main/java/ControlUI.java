@@ -11,7 +11,7 @@ import java.util.Map;
 public class ControlUI extends JFrame {
 
     private static final int MAX_POTS   = Hub.MAX_POTS;
-    private static final String BROKER_IP = "192.0.0.2"; // ← 맥북 내부 IP
+    private static final String BROKER_IP = "192.168.35.111"; // ← 브로커 IP
 
     private final Hub hub;
 
@@ -23,10 +23,15 @@ public class ControlUI extends JFrame {
     private final JButton[] waterButtons  = new JButton[MAX_POTS]; // 물 줬음
     private final JTextArea notificationArea;
 
+
+    // ── 생성자 ─────────────────────────────────────────────
+    // Hub 인스턴스를 주입받아 GUI를 초기화한다.
+    // Hub는 ControlUI에 대한 참조를 갖게 되고, ControlUI는 Hub의 상태를 반영하여 화면을 갱신
     public ControlUI(Hub hub) {
         this.hub = hub;
         hub.setUI(this);
 
+        // ── 프레임 설정 ───────────────────────────────────────────
         setTitle("식집사 🌿");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(760, 520);
@@ -62,7 +67,7 @@ public class ControlUI extends JFrame {
 
 
 
-    
+
 
     // ── 슬롯 패널 생성 ────────────────────────────────────────
 
