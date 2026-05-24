@@ -1,4 +1,5 @@
 import org.eclipse.paho.client.mqttv3.*;
+import org.eclipse.paho.client.mqttv3.persist.MemoryPersistence;
 
 /**
  * @FileName    : ArduinoMoistureSensor.java
@@ -18,7 +19,7 @@ public class ArduinoMoistureSensor implements MoistureSensor {
     private boolean connected = false;
 
     /**
-     * 생성 시 MQTT 브로커에 자동으로 연결하고 토픽을 구독한다.
+     * 생성 시 MQTT 브로커에 자동으로 연결하고 토픽을 구독
      *
      * @param sensorName 센서 이름 (예: "A0_수분센서")
      * @param brokerIp   Mosquitto가 실행 중인 맥북의 내부 IP
@@ -32,12 +33,15 @@ public class ArduinoMoistureSensor implements MoistureSensor {
     private void connectAndSubscribe(String brokerIp, String topic) {
         try {
             String brokerUrl = "tcp://" + brokerIp + ":1883";
-            MqttClient client = new MqttClient(brokerUrl, MqttClient.generateClientId());
+            MqttClient client = new MqttClient(brokerUrl, MqttClient.generateClientId(), new MemoryPersistence());
             client.connect();
             connected = true;
             System.out.println("[MQTT] '" + sensorName + "' 연결 성공: " + brokerUrl);
 
-            client.subscribe(topic, (t, msg) -> {
+            // 토픽 구독 및 메시지 수신 처리
+            // MQTT 메시지 수신은 별도의 스레드에서 비동기적으로 처리
+            // 또한 QoS 0으로 구독 (최대 한 번 전달, 순서 보장 없음)한다. 센서 데이터는 빠르게 변하지 않으므로 QoS 0으로 충분하다고 판단.
+            client.subscribe(topic, 0, (t, msg) -> {
                 String payload = new String(msg.getPayload());
                 try {
                     latestValue = Integer.parseInt(payload.trim());
