@@ -60,6 +60,10 @@ public class ControlUI extends JFrame {
         setVisible(true);
     }
 
+
+
+    
+
     // ── 슬롯 패널 생성 ────────────────────────────────────────
 
     private JPanel buildSlotPanel(int pin) {

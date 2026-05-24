@@ -18,7 +18,7 @@ public class Hub {
     private final Map<Integer, ScheduledFuture<?>> scheduledTasks = new HashMap<>();
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(MAX_POTS);
 
-    private ControlUI ui;
+    private ControlUI ui; 
 
     /** 생성자를 private으로 막아 외부에서 new Hub() 불가 (Singleton) */
     private Hub() {}

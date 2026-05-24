@@ -57,10 +57,15 @@ public class ArduinoMoistureSensor implements MoistureSensor {
         }
     }
 
+
+
+
     /** @return 센서 이름 */
     @Override
     public String getSensorName() { return sensorName; }
 
+
+    
     /**
      * MQTT로 수신된 최신 ADC 값을 반환한다.
      * 브로커 연결에 실패한 경우 테스트용 랜덤 값(0~1023)을 반환한다.
