@@ -11,15 +11,30 @@ public interface MoistureSensor {
     /**
      * 토양 수분 ADC 값을 반환한다.
      *
-     * @return 0~1023 범위의 ADC 값 (높을수록 건조) 
+     * @return 0~1023 범위의 ADC 값, 미수신이면 -1
      */
     int readValue();
 
     /**
      * 센서가 화분 흙에 꽂혀 있는지 판단한다.
-     * ADC 값이 AIR_THRESHOLD 미만이면 정상 삽입으로 간주한다.
      *
-     * @return 센서가 흙에 삽입되어 있으면 true, 공기 중이면 false
+     * @return 센서가 삽입되어 있으면 true, 공기 중이거나 미연결이면 false
      */
     boolean isInserted();
+
+    /**
+     * 공기 중(건조 기준)과 물 속(포화 기준) ADC 값으로 센서를 보정한다.
+     * 이후 getMoisturePercent()가 0~100% 값을 반환한다.
+     *
+     * @param dryValue 공기 중 ADC 값 (0% 기준)
+     * @param wetValue 물 속 ADC 값  (100% 기준)
+     */
+    void setCalibration(int dryValue, int wetValue);
+
+    /**
+     * 보정값을 적용한 수분 퍼센트를 반환한다.
+     *
+     * @return 0~100 범위의 수분 %, 보정 전이거나 미수신이면 -1
+     */
+    int getMoisturePercent();
 }

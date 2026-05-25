@@ -10,8 +10,7 @@ import java.util.Map;
  */
 public class ControlUI extends JFrame {
 
-    private static final int MAX_POTS   = Hub.MAX_POTS;
-    private static final String BROKER_IP = "192.168.35.111"; // ← 브로커 IP
+    private static final int MAX_POTS = Hub.MAX_POTS;
 
     private final Hub hub;
 
@@ -138,42 +137,64 @@ public class ControlUI extends JFrame {
         }
     }
 
-    /** 식물 생성 다이얼로그 표시 */
+    /** 식물 생성 다이얼로그 표시 (2점 보정 포함) */
     private void showCreateDialog(int pin) {
-        // 센서 삽입 안내
-        int ready = JOptionPane.showConfirmDialog(this,
-            "A" + pin + " 핀의 센서를 화분에 꽂은 후 확인을 누르세요.",
-            "센서 연결 안내", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
-        if (ready != JOptionPane.OK_OPTION) return;
-
-        // 식물 이름 입력 (선택)
-        String name = JOptionPane.showInputDialog(this,
-            "식물 이름을 입력하세요. (생략 시 종 이름 사용)", "식물 생성", JOptionPane.PLAIN_MESSAGE);
-        if (name == null) return; // 취소
-
-        // 식물 종 선택 (필수)
-        PlantSpecies[] species = PlantSpecies.values();
-        String[] speciesNames  = new String[species.length];
-        for (int i = 0; i < species.length; i++) speciesNames[i] = species[i].getDisplayName();
-        int idx = JOptionPane.showOptionDialog(this,
-            "식물 종을 선택하세요.", "식물 종 선택",
-            JOptionPane.DEFAULT_OPTION, JOptionPane.PLAIN_MESSAGE,
-            null, speciesNames, speciesNames[0]);
-        if (idx < 0) return; // 취소
-
-        // 객체 생성 및 Hub 등록
-        Plant plant   = new Plant(species[idx], name);
+        // ── MQTT 연결 및 센서 객체 생성 ─────────────────────────
         MoistureSensor sensor = new ArduinoMoistureSensor(
-            "A" + pin + "_sensor", BROKER_IP, "sensor/A" + pin);
+            "A" + pin + "_sensor", AppConfig.BROKER_IP, "sensor/A" + pin);
 
-        // 센서 삽입 확인
-        if (!sensor.isInserted()) {
+        // ── 보정 1단계: 공기 중 (건조 기준, 0%) ────────────────
+        JOptionPane.showMessageDialog(this,
+            "【보정 1단계 - 건조 기준】\n\n" +
+            "① 센서를 공기 중(흙 밖)에 두세요.\n" +
+            "② 5초 이상 기다리세요. (아두이노 전송 주기)\n" +
+            "③ 확인을 누르면 현재 값이 건조 기준으로 기록됩니다.",
+            "센서 보정", JOptionPane.INFORMATION_MESSAGE);
+
+        int dryValue = sensor.readValue();
+        if (dryValue < 0) {
             JOptionPane.showMessageDialog(this,
-                "센서가 감지되지 않습니다.\nA" + pin + " 핀의 센서를 다시 꽂아주세요.",
-                "센서 오류", JOptionPane.WARNING_MESSAGE);
+                "센서 값을 수신하지 못했습니다.\n" +
+                "아두이노가 연결되어 있는지 확인하고 다시 시도하세요.",
+                "오류", JOptionPane.ERROR_MESSAGE);
             return;
         }
 
+        // ── 보정 2단계: 물 속 (포화 기준, 100%) ────────────────
+        JOptionPane.showMessageDialog(this,
+            "【보정 2단계 - 포화 기준】\n\n" +
+            "① 센서를 물에 완전히 담그세요.\n" +
+            "② 5초 이상 기다리세요.\n" +
+            "③ 확인을 누르면 현재 값이 포화 기준으로 기록됩니다.\n\n" +
+            "(건조 기준값: " + dryValue + ")",
+            "센서 보정", JOptionPane.INFORMATION_MESSAGE);
+
+        int wetValue = sensor.readValue();
+        if (wetValue < 0 || wetValue <= dryValue + 50) {
+            JOptionPane.showMessageDialog(this,
+                "보정 값이 올바르지 않습니다.\n" +
+                "물 속 값이 공기 중 값보다 충분히 높아야 합니다.\n\n" +
+                "공기 중: " + dryValue + " / 물 속: " + wetValue,
+                "보정 오류", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        sensor.setCalibration(dryValue, wetValue);
+
+        // ── 식물 이름 입력 ───────────────────────────────────────
+        String name = JOptionPane.showInputDialog(this,
+            "식물 이름을 입력하세요. (생략 시 \"내 식물\"로 대체)",
+            "식물 생성", JOptionPane.PLAIN_MESSAGE);
+        if (name == null) return; // 취소
+
+        // ── 센서 삽입 안내 ───────────────────────────────────────
+        int ready = JOptionPane.showConfirmDialog(this,
+            "센서를 화분에 꽂은 후 확인을 누르세요.",
+            "센서 삽입", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
+        if (ready != JOptionPane.OK_OPTION) return;
+
+        // ── 등록 ────────────────────────────────────────────────
+        Plant plant = new Plant(name);
         if (hub.addPlantPot(pin, plant, sensor)) {
             setSlotOccupied(pin, plant.toString());
         }
@@ -230,6 +251,6 @@ public class ControlUI extends JFrame {
      */
     public void refreshPotPanel(int pin, int value) {
         if (value < 0) return;
-        valueLabels[pin].setText("수분 ADC: " + value);
+        valueLabels[pin].setText("수분: " + value + "%");
     }
 }

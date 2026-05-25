@@ -10,7 +10,7 @@ import java.util.List;
 public class SensorHistory {
 
     private static final int STABLE_HOURS   = 24;   // 안정 판단 기간 (시간)
-    private static final int VALUE_TOLERANCE = 50;   // 안정 판단 허용 오차 (ADC 기준)
+    private static final int VALUE_TOLERANCE = 10;   // 안정 판단 허용 오차 (수분 % 기준)
 
     private final List<SensorReading> readings = new ArrayList<>();
 
@@ -28,7 +28,7 @@ public class SensorHistory {
      * 최근 24시간 동안 측정값이 건조 임계값 이상으로 안정적으로 유지되었는지 판단한다.
      * 조건 1: 최근 STABLE_HOURS 이내의 데이터가 존재할 것
      * 조건 2: 측정값 변동 폭이 VALUE_TOLERANCE 이내일 것 (안정)
-     * 조건 3: 모든 측정값이 dryThreshold 이상일 것 (건조)
+     * 조건 3: 모든 측정값이 dryThreshold 이하일 것 (건조) - 반전 후: 낮은 값 = 건조
      *
      * @param dryThreshold 건조 판단 기준 ADC 값 (PlantSpecies에서 제공)
      * @return 관수가 필요한 상태이면 true
@@ -45,7 +45,7 @@ public class SensorHistory {
         }
 
         boolean isStable = (max - min) <= VALUE_TOLERANCE;
-        boolean isDry    = min >= dryThreshold;
+        boolean isDry    = max <= dryThreshold; // 반전 후: 낮은 값 = 건조
 
         return isStable && isDry;
     }

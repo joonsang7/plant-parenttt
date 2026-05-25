@@ -12,6 +12,9 @@ public class Hub {
     /** 아두이노 A0~A5 핀 개수 = 최대 화분 수 */
     public static final int MAX_POTS = 6;
 
+    /** 센서 체크 주기 (시간) */
+    private static final int CHECK_INTERVAL_HOURS = 6;
+
     private static Hub instance;
 
     private final Map<Integer, PlantPot> plantPots = new LinkedHashMap<>();
@@ -59,16 +62,15 @@ public class Hub {
         PlantPot pot = new PlantPot(pin, plant, sensor);
         plantPots.put(pin, pot);
 
-        // 식물 종별 체크 주기로 스케줄 등록
-        int intervalHours = plant.getSpecies().getCheckIntervalHours();
+        // 고정 체크 주기로 스케줄 등록
         ScheduledFuture<?> task = scheduler.scheduleAtFixedRate(
             () -> checkPot(pot),
-            0, intervalHours, TimeUnit.HOURS
+            0, CHECK_INTERVAL_HOURS, TimeUnit.HOURS
         );
         scheduledTasks.put(pin, task);
 
         System.out.println("[Hub] 화분 추가 완료: " + plant + " | 핀 A" + pin
-            + " | 체크 주기: " + intervalHours + "시간");
+            + " | 체크 주기: " + CHECK_INTERVAL_HOURS + "시간");
         return true;
     }
 
@@ -114,7 +116,7 @@ public class Hub {
      * 단일 화분의 센서를 읽고, 관수 필요 여부를 판단하여 GUI에 알린다.
      * 이미 알림을 보낸 화분에는 중복 알림을 발송하지 않는다.
      *
-     * @param pot 체크할 화분
+     * @param pot 체크할 화분 객체
      */
     private void checkPot(PlantPot pot) {
         pot.updateSensorData();

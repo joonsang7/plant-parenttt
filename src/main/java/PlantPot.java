@@ -6,6 +6,9 @@
  */
 public class PlantPot {
 
+    /** 건조 판단 기준 수분 % (이 값 이하이면 관수 필요) */
+    private static final int DRY_THRESHOLD = 30;
+
     private final int pinNumber;          // 아두이노 아날로그 핀 번호 (0 = A0)
     private final Plant plant;
     private final MoistureSensor sensor;
@@ -25,8 +28,8 @@ public class PlantPot {
     }
 
     /**
-     * 센서 삽입 여부를 확인한 뒤 측정값을 이력에 추가한다.
-     * 센서가 꽂혀있지 않으면 측정을 건너뛴다.
+     * 센서 삽입 여부를 확인한 뒤 수분 퍼센트를 이력에 추가한다.
+     * 센서가 꽂혀있지 않거나 보정 전이면 측정을 건너뛴다.
      */
     public void updateSensorData() {
         if (!sensor.isInserted()) {
@@ -34,20 +37,23 @@ public class PlantPot {
                 + " 센서가 화분에 꽂혀있지 않습니다. (A" + pinNumber + ")");
             return;
         }
-        int value = sensor.readValue();
-        history.addReading(value);
+        int percent = sensor.getMoisturePercent();
+        if (percent < 0) {
+            System.out.println("[경고] " + plant.getName() + " 센서 보정값이 없습니다.");
+            return;
+        }
+        history.addReading(percent);
         System.out.println("[A" + pinNumber + "] " + plant.getName()
-            + " 수분 ADC: " + value);
+            + " 수분: " + percent + "%");
     }
 
     /**
      * 현재 화분이 관수가 필요한 상태인지 판단한다.
-     * SensorHistory의 안정성 + 건조 조건을 위임하여 확인한다.
      *
      * @return 24시간 동안 안정적으로 건조 상태를 유지했으면 true
      */
     public boolean needsWatering() {
-        return history.isStableAndDry(plant.getSpecies().getDryThreshold());
+        return history.isStableAndDry(DRY_THRESHOLD);
     }
 
     /**
