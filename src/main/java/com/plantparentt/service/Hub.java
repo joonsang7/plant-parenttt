@@ -23,7 +23,9 @@ public class Hub {
     // Singleton 패턴을 적용하여 Hub 클래스의 단일 인스턴스를 제공한다. 앱 전체에서 이 인스턴스를 공유하여 화분 관리와 센서 체크를
     // 중앙 집중식으로 처리한다. Hub는 ControlUI와 PlantPot 간의 중개자 역할을 하며, PlantMonitorView
     // 인터페이스를 통해 ControlUI에 알림과 갱신을 전달한다.
+    // 하나만 존재하도록 하기 위해서 생성자를 private으로 막고, 클래스 로딩 시 단 한 번만 생성되는 INSTANCE 상수를 제공한다. 이렇게 하면 멀티스레드 환경에서도 안전하게 Singleton을 구현할 수 있다.
     private static final Hub INSTANCE = new Hub();
+
 
     // 핀 번호 → PlantPot 매핑 (화분 관리용)
     // plantPots는 화분을 담는 중앙 저장소 역할을 한다. Hub는 plantPots를 통해 각 핀에 어떤 화분이 등록되어 있는지
@@ -41,6 +43,7 @@ public class Hub {
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(MAX_POTS * 2);
 
     private PlantMonitorView view;
+
 
     /** 생성자를 private으로 막아 외부에서 new Hub() 불가하도록 하기 (Singleton 패턴) */
     private Hub() {
@@ -102,13 +105,22 @@ public class Hub {
         plantPots.put(pin, pot);
 
         // 건조 감지: 고정 주기로 스케줄 등록 (이력 누적 → 24시간 유지 판단)
-        // task 변수는 스케줄된 작업을 나타내는 ScheduledFuture<?> 객체로, 이 객체를 통해 작업의 상태를 추적하거나 취소할 수
-        // 있다. Hub에서는 화분 제거 시 이 작업을 취소하기 위해 ScheduledFuture<?> 객체를 저장한다.
-        // ScheduledFuture<?>는 스케줄된 작업이 Runnable인지 Callable인지에 관계없이 사용할 수 있다.
 
-        // runnable과 callable의 차이는 "runnable은 실행은 되지만, 완료 후에 어떤 결과도 반환하지 않는다"는 점!
-        // callable은 실행 후에 결과를 반환할 수 있다. Hub에서는 checkPot(pot) 메서드를 Runnable로 등록하여, 주기적으로
-        // 화분의 상태를 체크하지만, 이 작업이 완료된 후에 어떤 결과도 반환하지 않아야 하므로 Runnable을 사용하여 스케줄링한다
+
+        /**
+         * task 변수는 스케줄된 작업을 나타내는 ScheduledFuture<?> 객체로, 이 객체를 통해 작업의 상태를 추적하거나 취소할 수 있다.
+         * Hub에서는 화분 제거 시 이 작업을 취소하기 위해 ScheduledFuture<?> 객체를 저장한다.
+         * ScheduledFuture<?>는 스케줄된 작업이 Runnable인지 Callable인지에 관계없이 사용할 수 있다.
+
+            runnable과 callable의 차이 :
+             - Runnable: run() 메서드를 구현하며, 실행 후에 반환값이 없다. 단순히 작업을 수행하는 데 사용된다.
+             - Callable: call() 메서드를 구현하며, 실행 후에 결과를 반환할 수 있다. 예외를 던질 수도 있다.
+
+            Hub에서는 checkPot(pot) 메서드를 Runnable로 등록하여, 주기적으로 화분의 상태를 체크하지만, 
+            이 작업이 완료된 후에 어떤 결과도 반환하지 않아야 하므로 Runnable을 사용하여 스케줄링한다
+         * 
+         */
+        
         ScheduledFuture<?> task = scheduler.scheduleAtFixedRate(
                 () -> checkPot(pot),
                 0, AppConfig.CHECK_INTERVAL_HOURS, TimeUnit.HOURS);
@@ -152,26 +164,27 @@ public class Hub {
     }
 
     /**
-     * 등록된 모든 화분의 정보를 반환한다. (GUI 갱신용)
+     * 등록된 모든 화분의 정보를 반환하는 메서드 (GUI 갱신용)
      *
-     * @return 핀 번호 → PlantPot 매핑 (읽기 전용)
+     * @return 핀 번호를 키로, PlantPot 객체를 값으로 하는 읽기 전용 맵.
      */
     public Map<Integer, PlantPot> getPlantPots() {
         return Collections.unmodifiableMap(plantPots);
     }
 
     /**
-     * 특정 핀의 화분 센서를 즉시 체크하고 GUI를 갱신한다.
-     * ControlUI의 "수분량 체크" 버튼에서 호출된다.
-     * 건조 알림 발송 중이면 수분이 DRY_THRESHOLD 이상으로 회복되는 즉시 빨간색을 해제한다.
-     * 아직 건조 알림이 없는 상태에서 DRY_THRESHOLD 미만이면 즉시 알림을 발송한다.
+     * 특정 핀의 화분 센서를 즉시 체크하고 GUI를 갱신하는 메서드
+     * 
+     * ControlUI의 "수분량 체크" 버튼에서 호출
+     * 건조 알림 발송 중이면 수분이 DRY_THRESHOLD 이상으로 회복되는 즉시 빨간색(건조 상태 알람)을 해제한다.
+     * 아직 건조 알림이 없는 상태에서 DRY_THRESHOLD 미만이면 즉시 알림을 발송한다. 
      *
      * @param pin 체크할 핀 번호
      */
     public void checkPotNow(int pin) {
         PlantPot pot = plantPots.get(pin);
         if (pot == null)
-            return; // 해당 핀에 화분이 등록되어 있지 않을 경우에는 아무 작업도 하지 않는다
+            return; // 해당 핀에 화분이 등록되어 있지 않을 경우에는 아무 작업도 하지 않음
 
         checkPot(pot); // 건조 판단 + 이력 갱신 + GUI 수분값 갱신
 
@@ -196,8 +209,7 @@ public class Hub {
             return; // 관수 감지 완료 → 건조 즉시 알림 불필요
         }
 
-        // ── 수동 즉시 건조 판단
-        // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+        // ── 수동으로 즉시 건조 판단 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
         // 24시간 유지 조건 없이 현재 값이 낮으면 바로 알림
         if (!pot.isNotified() && pot.isCurrentlyDry()) {
             String msg = "🌱 " + pot.getPlantName() + "의 수분이 부족합니다. 물을 주세요!";
@@ -210,11 +222,11 @@ public class Hub {
         }
     }
 
-    // ── private
-    // ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    // ── private ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
     /**
      * 단일 화분의 센서를 읽고, 건조 여부를 판단하여 GUI에 알리는 메서드
+     * 
      * 이미 알림을 보낸 화분에는 중복 알림을 발송하지 않는 조건이 포함되어 있다. 이 메서드는 checkPotNow()에서 수동 체크용으로도
      * 호출되고, 스케줄러에서 주기적으로 자동 체크용으로도 호출된다.
      * 관수 감지는 checkWateringDetection()에서 별도 주기로 처리한다.
@@ -226,12 +238,14 @@ public class Hub {
 
         final int pin = pot.getPinNumber();
 
-        // ── 건조 알림
-        // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+        // ── 건조 알림  ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
         // 수분이 임계값 이하로 24시간 유지되면 알림 발송 (중복 방지)
+        // race condition 발생 가능한 상황: checkPotNow()에서 수동 체크로 건조 알림 발송 → 거의 동시에 스케줄러에서 자동 체크로 건조 알림 발송 → 중복 알림 발생 가능 
+        // 발생하려면 6시간 주기 스케줄러가 실행되는 짧은 시간 안에 사용자가 버튼을 눌러야 한다. 
         if (pot.needsWatering() && !pot.isNotified()) {
             String msg = "🌱 " + pot.getPlantName() + "의 수분이 부족합니다. 물을 주세요!";
             System.out.println("[알림] " + msg);
+
             pot.setNotified(true);
             if (view != null) {
                 view.showNotification(msg);
@@ -239,16 +253,18 @@ public class Hub {
             }
         }
 
-        // GUI 센서값 갱신
+        // View가 null이 아닌 경우 GUI 센서값 갱신하기 (화분 등록 직후, 수동 체크 시, 자동 체크 시)
         if (view != null) {
             view.refreshPotPanel(pin, pot.getLatestValue());
         }
     }
 
     /**
-     * 건조 알림이 발송된 화분에 대해 관수 여부를 즉시 확인한다.
-     * checkPot()의 6시간 주기와 별개로 1분마다 실행되어 물을 준 직후 빠르게 상태를 복구할 수 있도록 한다
-     * 이력에 추가하지 않고 센서 현재값만 직접 읽어 가볍게 처리
+     * 건조 알림이 발송된 화분에 대해 관수 여부를 즉시 확인하는 메서드
+     * checkPot()의 6시간 주기와 별개로 1분마다 실행되어 물을 준 직후 빠르게 상태를 체크 할 수 있도록 한다. 
+     * 이 메서드는 checkPotNow()에서 수동 체크용으로도 호출되고, 스케줄러에서 주기적으로 자동 체크용으로도 호출된다.
+     * 
+     * 이력에는 추가하지 않고 센서 현재값만 직접 읽어 가볍게 처리
      *
      * @param pot 체크할 화분 객체
      */
