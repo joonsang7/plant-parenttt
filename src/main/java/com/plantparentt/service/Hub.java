@@ -1,10 +1,9 @@
 package com.plantparentt.service;
 
 import com.plantparentt.config.AppConfig;
-import com.plantparentt.model.Plant;
 import com.plantparentt.model.PlantPot;
+import com.plantparentt.sensor.ArduinoMoistureSensor;
 import com.plantparentt.sensor.MoistureSensor;
-import com.plantparentt.sensor.SensorFactory;
 
 import java.util.*;
 import java.util.concurrent.*;
@@ -17,11 +16,11 @@ import java.util.concurrent.*;
  */
 public class Hub {
 
-    /** 아두이노 A0~A5 핀 개수 = 최대 화분 수 */
+    /** 아두이노 아날로그 핀은 A0~A5 까지 존재하므로 최대 화분 수는 6개로 고정 */
     public static final int MAX_POTS = 6;
 
 
-    // ⑤ Eager initialization: JVM 클래스 로딩 시 단 한 번만 생성 → 별도 동기화 불필요
+    // Eager initialization: JVM 클래스 로딩 시 단 한 번만 생성 → 별도 동기화 불필요
     private static final Hub INSTANCE = new Hub();
 
     // 핀 번호 --→ PlantPot 매핑 (화분 관리용)
@@ -57,24 +56,24 @@ public class Hub {
 
     /**
      * 지정한 핀 번호에 대한 센서를 생성하고 반환한다.
-     * SensorFactory에 생성을 위임하여 Hub이 구현체를 직접 알지 않도록 한다. (DIP)
      *
      * @param pin 아두이노 아날로그 핀 번호 (0~5)
      * @return 생성된 MoistureSensor 인스턴스
      */
     public MoistureSensor createSensor(int pin) {
-        return SensorFactory.create(pin);
+        return new ArduinoMoistureSensor(
+            "A" + pin + "_sensor", AppConfig.BROKER_IP, "sensor/A" + pin);
     }
 
     /**
      * 새 화분을 등록하고 해당 화분의 센서 체크 스케줄을 시작한다
      *
-     * @param pin    아두이노 아날로그 핀 번호 (0~5)
-     * @param plant  화분에 심긴 식물 객체
-     * @param sensor 화분에 꽂힌 센서 객체
+     * @param pin       아두이노 아날로그 핀 번호 (0~5)
+     * @param plantName 화분에 심긴 식물 이름
+     * @param sensor    화분에 꽂힌 센서 객체
      * @return 등록 성공이면 true, 최대 수 초과 또는 핀 중복이면 false
      */
-    public boolean addPlantPot(int pin, Plant plant, MoistureSensor sensor) {
+    public boolean addPlantPot(int pin, String plantName, MoistureSensor sensor) {
         if (plantPots.size() >= MAX_POTS) {
             System.out.println("[Hub] 최대 화분 수(" + MAX_POTS + ")에 도달했습니다.");
             return false;
@@ -84,7 +83,7 @@ public class Hub {
             return false;
         }
 
-        PlantPot pot = new PlantPot(pin, plant, sensor);
+        PlantPot pot = new PlantPot(pin, plantName, sensor);
         plantPots.put(pin, pot);
 
         // 건조 감지: 고정 주기로 스케줄 등록 (이력 누적 → 24시간 유지 판단)
@@ -103,14 +102,15 @@ public class Hub {
         );
         wateringTasks.put(pin, wateringTask);
 
-        System.out.println("[Hub] 화분 추가 완료: " + plant + " | 핀 A" + pin
+        System.out.println("[Hub] 화분 추가 완료: " + pot.getPlantName() + " | 핀 A" + pin
             + " | 건조 체크: " + AppConfig.CHECK_INTERVAL_HOURS + "시간"
             + " | 관수 감지: " + AppConfig.WATERING_CHECK_INTERVAL_MINUTES + "분");
         return true;
     }
 
     /**
-     * 화분을 제거하고 해당 스케줄을 중단한다. 핀이 다시 사용 가능해진다.
+     * 화분을 제거하고 해당 스케줄을 중단함으로써 핀이 다시 사용 가능해진다
+     * 화분 제거 시 센서 MQTT 구독도 해제하여 재등록 때 중복 구독이 발생하지 않도록 했습니다
      *
      * @param pin 제거할 화분의 핀 번호
      */
@@ -118,13 +118,14 @@ public class Hub {
         ScheduledFuture<?> task = scheduledTasks.remove(pin);
         if (task != null) task.cancel(false);
 
+        // 관수 감지 스케줄도 함께 취소
         ScheduledFuture<?> wateringTask = wateringTasks.remove(pin);
         if (wateringTask != null) wateringTask.cancel(false);
 
         PlantPot removed = plantPots.remove(pin);
         if (removed != null) {
-            removed.disconnect(); // 센서 MQTT 구독 해제 — 미해제 시 재등록 때 중복 구독 발생
-            System.out.println("[Hub] 화분 제거: " + removed.getPlant().getName() + " (A" + pin + ")");
+            removed.disconnect(); // 센서 MQTT 구독 해제 — 미해제 시 재등록 때 중복 구독 발생하기 때문에 화분 제거 시 구독 해제하도록 했습니다
+            System.out.println("[Hub] 화분 제거: " + removed.getPlantName() + " (A" + pin + ")");
         }
     }
 
@@ -153,44 +154,40 @@ public class Hub {
 
         int latestValue = pot.getLatestValue();
 
-        // ── 수동 관수 감지 ────────────────────────────────────────
+        // ── 수동 관수 감지 ─────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
         // 건조 알림 발송 후 수분이 건조 기준 이상으로 회복되면 빨간색 즉시 해제
         // 자동 감지(WATERING_DETECTED_THRESHOLD=50%)보다 낮은 기준 적용 - 사용자가 직접 확인한 값이므로
         if (pot.isNotified() && latestValue >= AppConfig.DRY_THRESHOLD) {
             boolean wellWatered = latestValue >= AppConfig.WATERING_DETECTED_THRESHOLD;
             pot.resetAfterWatering();
-            System.out.println("[수동 체크 관수 감지] " + pot.getPlant().getName()
+            System.out.println("[수동 체크 관수 감지] " + pot.getPlantName()
                 + " 수분 " + latestValue + "% → 건조 알림 해제");
             if (view != null) {
-                javax.swing.SwingUtilities.invokeLater(() -> {
-                    view.resetPotPanel(pin);
-                    if (wellWatered) {
-                        String msg = "💧 " + pot.getPlant().getName() + " 관수가 감지되었습니다.";
-                        view.showNotification(msg);
-                    }
-                });
+                view.resetPotPanel(pin);
+                if (wellWatered) {
+                    String msg = "💧 " + pot.getPlantName() + " 관수가 감지되었습니다.";
+                    view.showNotification(msg);
+                }
             }
             return; // 관수 감지 완료 → 건조 즉시 알림 불필요
         }
 
-        // ── 수동 즉시 건조 판단 ───────────────────────────────────
+        // ── 수동 즉시 건조 판단 ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
         // 24시간 유지 조건 없이 현재 값이 낮으면 바로 알림
         if (!pot.isNotified() && pot.isCurrentlyDry()) {
-            String msg = "🌱 " + pot.getPlant().getName() + "의 수분이 부족합니다. 물을 주세요!";
+            String msg = "🌱 " + pot.getPlantName() + "의 수분이 부족합니다. 물을 주세요!";
             System.out.println("[즉시 알림] " + msg);
             pot.setNotified(true);
             if (view != null) {
-                javax.swing.SwingUtilities.invokeLater(() -> {
-                    view.showNotification(msg);
-                    view.markSlotDry(pin);
-                });
+                view.showNotification(msg);
+                view.markSlotDry(pin);
             }
         }
     }
 
 
 
-    // ── private ──────────────────────────────────────────────
+    // ── private ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
     /**
      * 단일 화분의 센서를 읽고, 건조 여부를 판단하여 GUI에 알린다.
@@ -204,25 +201,21 @@ public class Hub {
 
         final int pin = pot.getPinNumber();
 
-        // ── 건조 알림 ─────────────────────────────────────────────
+        // ── 건조 알림 ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
         // 수분이 임계값 이하로 24시간 유지되면 알림 발송 (중복 방지)
         if (pot.needsWatering() && !pot.isNotified()) {
-            String msg = "🌱 " + pot.getPlant().getName() + "의 수분이 부족합니다. 물을 주세요!";
+            String msg = "🌱 " + pot.getPlantName() + "의 수분이 부족합니다. 물을 주세요!";
             System.out.println("[알림] " + msg);
             pot.setNotified(true);
             if (view != null) {
-                // GUI 업데이트는 반드시 EDT(이벤트 디스패치 스레드)에서 실행
-                javax.swing.SwingUtilities.invokeLater(() -> {
-                    view.showNotification(msg);
-                    view.markSlotDry(pin);
-                });
+                view.showNotification(msg);
+                view.markSlotDry(pin);
             }
         }
 
         // GUI 센서값 갱신
         if (view != null) {
-            javax.swing.SwingUtilities.invokeLater(() ->
-                view.refreshPotPanel(pin, pot.getLatestValue()));
+            view.refreshPotPanel(pin, pot.getLatestValue());
         }
     }
 
@@ -243,13 +236,11 @@ public class Hub {
 
         if (currentPercent >= AppConfig.WATERING_DETECTED_THRESHOLD) {
             pot.resetAfterWatering();
-            String msg = "💧 " + pot.getPlant().getName() + " 관수가 감지되었습니다.";
+            String msg = "💧 " + pot.getPlantName() + " 관수가 감지되었습니다.";
             System.out.println("[관수 감지] " + msg);
             if (view != null) {
-                javax.swing.SwingUtilities.invokeLater(() -> {
-                    view.showNotification(msg);
-                    view.resetPotPanel(pin);
-                });
+                view.showNotification(msg);
+                view.resetPotPanel(pin);
             }
         }
     }

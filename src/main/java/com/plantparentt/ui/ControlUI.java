@@ -1,6 +1,5 @@
 package com.plantparentt.ui;
 
-import com.plantparentt.model.Plant;
 import com.plantparentt.sensor.MoistureSensor;
 import com.plantparentt.service.Hub;
 import com.plantparentt.service.PlantMonitorView;
@@ -168,9 +167,8 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         if (ready != JOptionPane.OK_OPTION) { sensor.disconnect(); return; }
 
         // ── 등록 ────────────────────────────────────────────────
-        Plant plant = new Plant(name);
-        if (hub.addPlantPot(pin, plant, sensor)) {
-            setSlotOccupied(pin, plant.toString());
+        if (hub.addPlantPot(pin, name, sensor)) {
+            setSlotOccupied(pin, name.isBlank() ? "내 식물" : name);
         } else {
             sensor.disconnect();
         }
@@ -210,51 +208,60 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         btnPanels[pin].repaint();
     }
 
-    // ── Hub가 호출하는 공개 메서드 ───────────────────────────────
+    // ── PlantMonitorView 구현 ────────────────────────────────────
+    // Hub는 스케줄러 스레드에서 이 메서드들을 직접 호출한다.
+    // Swing 컴포넌트 조작은 반드시 EDT에서 실행되어야 하므로
+    // EDT dispatch 책임은 구현체인 ControlUI가 직접 담당한다.
 
     /**
      * 알림 메시지를 화면 하단 알림 영역에 추가한다.
-     * 관수 필요 알림 시 해당 슬롯을 빨간색으로 강조한다.
      *
      * @param message 표시할 알림 메시지
      */
+    @Override
     public void showNotification(String message) {
-        notificationArea.append(message + "\n");
-        notificationArea.setCaretPosition(notificationArea.getDocument().getLength());
+        SwingUtilities.invokeLater(() -> {
+            notificationArea.append(message + "\n");
+            notificationArea.setCaretPosition(notificationArea.getDocument().getLength());
+        });
     }
 
     /**
      * 건조 알림 발송 시 해당 슬롯을 빨간색으로 강조한다.
-     * Hub이 핀 번호를 직접 전달하므로 식물 이름 문자열 파싱 없이 정확하게 동작한다.
      *
      * @param pin 강조할 핀 번호
      */
     @Override
     public void markSlotDry(int pin) {
-        slotPanels[pin].setBackground(new Color(255, 220, 220));
-        valueLabels[pin].setForeground(Color.RED);
+        SwingUtilities.invokeLater(() -> {
+            slotPanels[pin].setBackground(new Color(255, 220, 220));
+            valueLabels[pin].setForeground(Color.RED);
+        });
     }
 
     /**
      * 특정 핀의 화분 슬롯에 수분 퍼센트를 갱신한다.
-     * Hub의 checkPot()에서 EDT를 통해 호출된다.
      *
      * @param pin   갱신할 핀 번호
      * @param value 최신 수분 % (-1이면 이력 없음)
      */
+    @Override
     public void refreshPotPanel(int pin, int value) {
         if (value < 0) return;
-        valueLabels[pin].setText("수분: " + value + "%");
+        SwingUtilities.invokeLater(() ->
+            valueLabels[pin].setText("수분: " + value + "%"));
     }
 
     /**
      * 관수 감지 후 슬롯의 빨간색 강조를 원래 색상으로 되돌린다.
-     * Hub의 checkPot()에서 EDT를 통해 호출된다.
      *
      * @param pin 초기화할 핀 번호
      */
+    @Override
     public void resetPotPanel(int pin) {
-        slotPanels[pin].setBackground(new Color(245, 245, 240));
-        valueLabels[pin].setForeground(Color.DARK_GRAY);
+        SwingUtilities.invokeLater(() -> {
+            slotPanels[pin].setBackground(new Color(245, 245, 240));
+            valueLabels[pin].setForeground(Color.DARK_GRAY);
+        });
     }
 }

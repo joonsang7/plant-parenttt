@@ -7,29 +7,31 @@ import com.plantparentt.sensor.SensorHistory;
 /**
  * @FileName    : PlantPot.java
  * @Description : 물리적 화분 한 개를 표현하는 클래스
- *                아두이노 핀 번호, 식물 정보, 센서, 센서 이력을 하나로 묶는다
+ *                아두이노 핀 번호, 식물 이름, 센서, 센서 이력을 하나로 묶는다
  *                핀 번호(0~5)가 화분의 고유 식별자 역할을 함
+ *
+ *                Hub에서 각 화분의 상태를 체크할 때 updateSensorData()로 센서 데이터를 갱신한 뒤
+ *                needsWatering()으로 건조 여부를 판단한다.
+ *                관수 감지 후에는 resetAfterWatering()으로 이력과 알림 상태를 초기화한다.
  */
 public class PlantPot {
 
-
-
     private final int pinNumber;          // 아두이노 아날로그 핀 번호 (0 = A0)
-    private final Plant plant;
+    private final String plantName;       // 식물 이름 (null·공백이면 "내 식물"로 대체)
     private final MoistureSensor sensor;
     private final SensorHistory history;
     private volatile boolean notified = false; // 관수 알림 발송 여부 (스케줄러·EDT 양쪽에서 접근 — volatile로 가시성 보장)
 
     /**
      * @param pinNumber 아두이노 아날로그 핀 번호 (0~5)
-     * @param plant     이 화분에 심긴 식물 객체
+     * @param plantName 이 화분에 심긴 식물 이름 (null·공백이면 "내 식물"로 대체)
      * @param sensor    이 화분에 꽂힌 센서 객체
      */
-    public PlantPot(int pinNumber, Plant plant, MoistureSensor sensor) {
-        this.pinNumber = pinNumber;
-        this.plant     = plant;
-        this.sensor    = sensor;
-        this.history   = new SensorHistory();
+    public PlantPot(int pinNumber, String plantName, MoistureSensor sensor) {
+        this.pinNumber  = pinNumber;
+        this.plantName  = (plantName == null || plantName.isBlank()) ? "내 식물" : plantName;
+        this.sensor     = sensor;
+        this.history    = new SensorHistory();
     }
 
     /**
@@ -38,18 +40,17 @@ public class PlantPot {
      */
     public void updateSensorData() {
         if (!sensor.isInserted()) {
-            System.out.println("[경고] " + plant.getName()
+            System.out.println("[경고] " + plantName
                 + " 센서가 화분에 꽂혀있지 않습니다. (A" + pinNumber + ")");
             return;
         }
         int percent = sensor.getMoisturePercent();
         if (percent < 0) {
-            System.out.println("[경고] " + plant.getName() + " 센서 보정값이 없습니다.");
+            System.out.println("[경고] " + plantName + " 센서 보정값이 없습니다.");
             return;
         }
         history.addReading(percent);
-        System.out.println("[A" + pinNumber + "] " + plant.getName()
-            + " 수분: " + percent + "%");
+        System.out.println("[A" + pinNumber + "] " + plantName + " 수분: " + percent + "%");
     }
 
     /**
@@ -73,7 +74,7 @@ public class PlantPot {
 
     /**
      * 현재 수분값이 즉시 건조 기준 이하인지 판단
-     * needsWatering()과 달리 24시간 유지 조건 없이 최신 값을 통해 판단한다. 수동 체크(수분량 체크 버튼) 시 즉시 알림에 사용됩니다.
+     * needsWatering()과 달리 24시간 유지 조건 없이 최신 값을 통해 판단한다.
      * 수동 체크(수분량 체크 버튼) 시 즉시 알림에 사용된다.
      *
      * @return 최신 수분 %가 AppConfig.DRY_THRESHOLD 미만이면 true
@@ -90,7 +91,7 @@ public class PlantPot {
     public void resetAfterWatering() {
         history.reset();
         notified = false;
-        System.out.println("[" + plant.getName() + "] 관수 감지, 이력 초기화.");
+        System.out.println("[" + plantName + "] 관수 감지, 이력 초기화.");
     }
 
     /**
@@ -101,15 +102,18 @@ public class PlantPot {
         sensor.disconnect();
     }
 
-    // ── Getters ──────────────────────────────────────────────
+
+    
+
+    // ── Getters ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
     /** @return 아두이노 아날로그 핀 번호 */
     public int getPinNumber() { return pinNumber; }
 
-    /** @return 이 화분의 식물 객체 */
-    public Plant getPlant() { return plant; }
+    /** @return 식물 이름 */
+    public String getPlantName() { return plantName; }
 
-    /** @return 가장 최근 센서 ADC 값, 이력 없으면 -1 */
+    /** @return 가장 최근 수분 %, 이력 없으면 -1 */
     public int getLatestValue() { return history.getLatestValue(); }
 
     /** @return 관수 알림이 이미 발송되었으면 true */

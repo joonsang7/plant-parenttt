@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
+
+
 /**
  * @FileName    : SensorHistory.java
  * @Description : 센서 측정값 이력을 관리하고, 24시간 동안 값이 안정적으로
@@ -33,7 +35,7 @@ public class SensorHistory {
      * 최근 24시간 동안 측정값이 건조 임계값 이상으로 안정적으로 유지되었는지 판단한다.
      * 조건 1: 최근 AppConfig.STABLE_HOURS 이내의 데이터가 존재할 것
      * 조건 2: 측정값 변동 폭이 AppConfig.VALUE_TOLERANCE 이내일 것 (안정)
-     * 조건 3: 모든 측정값이 dryThreshold 이하일 것 (건조) - 반전 후: 낮은 값 = 건조
+     * 조건 3: 모든 측정값이 dryThreshold 이하일 것 (건조)
      *
      * @param dryThreshold 건조 판단 기준 수분 % (AppConfig.DRY_THRESHOLD에서 제공)
      * @return 관수가 필요한 상태이면 true
@@ -55,7 +57,7 @@ public class SensorHistory {
         }
 
         boolean isStable = (max - min) <= AppConfig.VALUE_TOLERANCE;
-        boolean isDry    = max <= dryThreshold; // 반전 후: 낮은 값 = 건조
+        boolean isDry    = max <= dryThreshold;
 
         return isStable && isDry;
     }
@@ -78,7 +80,7 @@ public class SensorHistory {
         return readings.get(readings.size() - 1).getValue();
     }
 
-    // ── private ──────────────────────────────────────────────
+    // ── private ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
     /** AppConfig.STABLE_HOURS 이내의 측정값 목록을 반환한다. (호출부가 이미 synchronized) */
     private List<SensorReading> getRecentReadings() {
@@ -95,4 +97,24 @@ public class SensorHistory {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(AppConfig.STABLE_HOURS);
         readings.removeIf(r -> r.getTimestamp().isBefore(cutoff));
     }
+
+      // ──  SensorReading (inner class) ────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    /**
+     * 센서에서 읽은 단일 측정값과 측정 시각을 저장하는 데이터 클래스.
+     * SensorHistory의 구현 세부사항이므로 외부에 노출하지 않도록 했습니다.
+     */
+    private static class SensorReading {
+
+        private final int value;
+        private final LocalDateTime timestamp;
+
+        SensorReading(int value) {
+            this.value     = value;
+            this.timestamp = LocalDateTime.now();
+        }
+
+        int getValue()           { return value; }
+        LocalDateTime getTimestamp() { return timestamp; }
+    }
+  
 }
