@@ -9,9 +9,9 @@ import javax.swing.border.*;
 import java.awt.*;
 
 /**
- * @FileName    : ControlUI.java
+ * @FileName : ControlUI.java
  * @Description : 식집사 메인 GUI 클래스 (Java Swing)
- *                화분 슬롯 6칸 표시, 식물 생성/삭제/물주기 기능, 알림 패널을 제공한다.
+ *              화분 슬롯 6칸 표시, 식물 생성/삭제/물주기 기능, 알림 패널을 제공한다.
  */
 public class ControlUI extends JFrame implements PlantMonitorView {
 
@@ -20,14 +20,13 @@ public class ControlUI extends JFrame implements PlantMonitorView {
     private final Hub hub;
 
     // UI 컴포넌트
-    private final JPanel[]  slotPanels    = new JPanel[MAX_POTS];
-    private final JPanel[]  btnPanels     = new JPanel[MAX_POTS]; // 버튼 컨테이너 (동적 추가/제거용)
-    private final JLabel[]  nameLabels    = new JLabel[MAX_POTS];
-    private final JLabel[]  valueLabels   = new JLabel[MAX_POTS];
+    private final JPanel[] slotPanels = new JPanel[MAX_POTS];
+    private final JPanel[] btnPanels = new JPanel[MAX_POTS]; // 버튼 컨테이너 (동적 추가/제거용)
+    private final JLabel[] nameLabels = new JLabel[MAX_POTS];
+    private final JLabel[] valueLabels = new JLabel[MAX_POTS];
     private final JButton[] actionButtons = new JButton[MAX_POTS]; // 식물 생성 or 삭제
-    private final JButton[] checkButtons  = new JButton[MAX_POTS]; // 수분량 체크 (식물 등록 시 생성)
+    private final JButton[] checkButtons = new JButton[MAX_POTS]; // 수분량 체크 (식물 등록 시 생성)
     private final JTextArea notificationArea;
-
 
     // ── 생성자 ─────────────────────────────────────────────
     // Hub 인스턴스를 주입받아 GUI를 초기화한다.
@@ -71,9 +70,6 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         setVisible(true);
     }
 
-
-
-
     // ── 슬롯 패널 생성 ────────────────────────────────────────
 
     private JPanel buildSlotPanel(int pin) {
@@ -82,7 +78,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         panel.setBackground(new Color(245, 245, 240));
 
         // 식물 이름 / 수분값
-        nameLabels[pin]  = new JLabel("(비어있음)", JLabel.CENTER);
+        nameLabels[pin] = new JLabel("비어있음", JLabel.CENTER);
         valueLabels[pin] = new JLabel("수분: --", JLabel.CENTER);
         nameLabels[pin].setFont(new Font("SansSerif", Font.BOLD, 13));
         valueLabels[pin].setFont(new Font("SansSerif", Font.PLAIN, 12));
@@ -106,7 +102,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         panel.add(infoPanel, BorderLayout.CENTER);
         panel.add(btnPanel, BorderLayout.SOUTH);
 
-        btnPanels[pin]  = btnPanel;
+        btnPanels[pin] = btnPanel;
         slotPanels[pin] = panel;
         return panel;
     }
@@ -123,7 +119,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         if (hub.getPlantPots().containsKey(pin)) {
             // 현재 화분이 있으면 → 삭제
             int choice = JOptionPane.showConfirmDialog(this,
-                "A" + pin + " 화분을 삭제하시겠습니까?", "화분 삭제", JOptionPane.YES_NO_OPTION);
+                    "A" + pin + " 화분을 삭제하시겠습니까?", "화분 삭제", JOptionPane.YES_NO_OPTION);
             if (choice == JOptionPane.YES_OPTION) {
                 hub.removePlantPot(pin);
                 setSlotEmpty(pin);
@@ -156,15 +152,21 @@ public class ControlUI extends JFrame implements PlantMonitorView {
 
         // ── 식물 이름 입력 ───────────────────────────────────────
         String name = JOptionPane.showInputDialog(this,
-            "식물 이름을 입력하세요. (생략 시 \"내 식물\"로 대체)",
-            "식물 생성", JOptionPane.PLAIN_MESSAGE);
-        if (name == null) { sensor.disconnect(); return; } // 취소
+                "식물 이름을 입력하세요. (생략 시 \"내 식물\"로 대체)",
+                "식물 생성", JOptionPane.PLAIN_MESSAGE);
+        if (name == null) {
+            sensor.disconnect();
+            return;
+        } // 취소
 
         // ── 센서 삽입 안내 ───────────────────────────────────────
         int ready = JOptionPane.showConfirmDialog(this,
-            "센서를 화분에 꽂은 후 확인을 누르세요.",
-            "센서 삽입", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
-        if (ready != JOptionPane.OK_OPTION) { sensor.disconnect(); return; }
+                "센서를 화분에 꽂은 후 확인을 누르세요.",
+                "센서 삽입", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
+        if (ready != JOptionPane.OK_OPTION) {
+            sensor.disconnect();
+            return;
+        }
 
         // ── 등록 ────────────────────────────────────────────────
         if (hub.addPlantPot(pin, name, sensor)) {
@@ -173,7 +175,6 @@ public class ControlUI extends JFrame implements PlantMonitorView {
             sensor.disconnect();
         }
     }
-
 
     // ── 슬롯 상태 변경 ──────────────────────────────────────────
 
@@ -247,9 +248,9 @@ public class ControlUI extends JFrame implements PlantMonitorView {
      */
     @Override
     public void refreshPotPanel(int pin, int value) {
-        if (value < 0) return;
-        SwingUtilities.invokeLater(() ->
-            valueLabels[pin].setText("수분: " + value + "%"));
+        if (value < 0)
+            return;
+        SwingUtilities.invokeLater(() -> valueLabels[pin].setText("수분: " + value + "%"));
     }
 
     /**
