@@ -1,14 +1,20 @@
+package com.plantparentt.ui;
+
+import com.plantparentt.model.Plant;
+import com.plantparentt.sensor.MoistureSensor;
+import com.plantparentt.service.Hub;
+import com.plantparentt.service.PlantMonitorView;
+
 import javax.swing.*;
 import javax.swing.border.*;
 import java.awt.*;
-import java.util.Map;
 
 /**
  * @FileName    : ControlUI.java
  * @Description : 식집사 메인 GUI 클래스 (Java Swing)
  *                화분 슬롯 6칸 표시, 식물 생성/삭제/물주기 기능, 알림 패널을 제공한다.
  */
-public class ControlUI extends JFrame {
+public class ControlUI extends JFrame implements PlantMonitorView {
 
     private static final int MAX_POTS = Hub.MAX_POTS;
 
@@ -16,29 +22,31 @@ public class ControlUI extends JFrame {
 
     // UI 컴포넌트
     private final JPanel[]  slotPanels    = new JPanel[MAX_POTS];
+    private final JPanel[]  btnPanels     = new JPanel[MAX_POTS]; // 버튼 컨테이너 (동적 추가/제거용)
     private final JLabel[]  nameLabels    = new JLabel[MAX_POTS];
     private final JLabel[]  valueLabels   = new JLabel[MAX_POTS];
     private final JButton[] actionButtons = new JButton[MAX_POTS]; // 식물 생성 or 삭제
-    private final JButton[] waterButtons  = new JButton[MAX_POTS]; // 물 줬음
+    private final JButton[] checkButtons  = new JButton[MAX_POTS]; // 수분량 체크 (식물 등록 시 생성)
     private final JTextArea notificationArea;
 
 
     // ── 생성자 ─────────────────────────────────────────────
     // Hub 인스턴스를 주입받아 GUI를 초기화한다.
-    // Hub는 ControlUI에 대한 참조를 갖게 되고, ControlUI는 Hub의 상태를 반영하여 화면을 갱신
+    // ControlUI는 PlantMonitorView를 구현하여 Hub에 view로 등록되고,
+    // Hub는 PlantMonitorView 인터페이스를 통해 알림·갱신을 전달한다. (DIP)
     public ControlUI(Hub hub) {
         this.hub = hub;
-        hub.setUI(this);
+        hub.setView(this);
 
         // ── 프레임 설정 ───────────────────────────────────────────
-        setTitle("식집사 🌿");
+        setTitle("그린벨 🌿");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(760, 520);
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(8, 8));
 
         // ── 상단: 제목 ─────────────────────────────────────
-        JLabel title = new JLabel("🌱 식집사", JLabel.CENTER);
+        JLabel title = new JLabel("🌱 그린벨", JLabel.CENTER);
         title.setFont(new Font("SansSerif", Font.BOLD, 22));
         title.setBorder(new EmptyBorder(12, 0, 4, 0));
         add(title, BorderLayout.NORTH);
@@ -67,7 +75,6 @@ public class ControlUI extends JFrame {
 
 
 
-
     // ── 슬롯 패널 생성 ────────────────────────────────────────
 
     private JPanel buildSlotPanel(int pin) {
@@ -86,29 +93,31 @@ public class ControlUI extends JFrame {
         infoPanel.add(nameLabels[pin]);
         infoPanel.add(valueLabels[pin]);
 
-        // 버튼 영역
+        // 버튼 영역 - 초기에는 "식물 생성" 버튼만 존재
+        // "수분량 체크" 버튼은 식물 등록 후 동적으로 추가됨
         actionButtons[pin] = new JButton("식물 생성");
-        waterButtons[pin]  = new JButton("물 줬음 💧");
-        waterButtons[pin].setEnabled(false);
-        waterButtons[pin].setVisible(false);
 
         final int p = pin;
         actionButtons[pin].addActionListener(e -> onActionButton(p));
-        waterButtons[pin].addActionListener(e -> onWaterButton(p));
 
-        JPanel btnPanel = new JPanel(new GridLayout(1, 2, 4, 0));
+        JPanel btnPanel = new JPanel(new GridLayout(1, 1));
         btnPanel.setOpaque(false);
         btnPanel.add(actionButtons[pin]);
-        btnPanel.add(waterButtons[pin]);
 
         panel.add(infoPanel, BorderLayout.CENTER);
-        panel.add(btnPanel,  BorderLayout.SOUTH);
+        panel.add(btnPanel, BorderLayout.SOUTH);
 
+        btnPanels[pin]  = btnPanel;
         slotPanels[pin] = panel;
         return panel;
     }
 
     // ── 버튼 핸들러 ────────────────────────────────────────────
+
+    /** "수분량 체크" 버튼 클릭 처리 */
+    private void onCheckButton(int pin) {
+        hub.checkPotNow(pin);
+    }
 
     /** "식물 생성" 또는 "삭제" 버튼 클릭 처리 */
     private void onActionButton(int pin) {
@@ -126,79 +135,47 @@ public class ControlUI extends JFrame {
         }
     }
 
-    /** "물 줬음" 버튼 클릭 처리 */
-    private void onWaterButton(int pin) {
-        PlantPot pot = hub.getPlantPots().get(pin);
-        if (pot != null) {
-            pot.resetAfterWatering();
-            valueLabels[pin].setForeground(Color.DARK_GRAY);
-            waterButtons[pin].setEnabled(false);
-            showNotification("💧 " + pot.getPlant().getName() + "에 물을 주었습니다.");
-        }
-    }
-
-    /** 식물 생성 다이얼로그 표시 (2점 보정 포함) */
+    /** 식물 생성 다이얼로그 표시 (2점 자동 보정 포함) */
     private void showCreateDialog(int pin) {
-        // ── MQTT 연결 및 센서 객체 생성 ─────────────────────────
-        MoistureSensor sensor = new ArduinoMoistureSensor(
-            "A" + pin + "_sensor", AppConfig.BROKER_IP, "sensor/A" + pin);
+        // ── 센서 객체 생성 (Hub → SensorFactory에 위임) ──────────
+        MoistureSensor sensor = hub.createSensor(pin);
 
-        // ── 보정 1단계: 공기 중 (건조 기준, 0%) ────────────────
-        JOptionPane.showMessageDialog(this,
-            "【보정 1단계 - 건조 기준】\n\n" +
-            "① 센서를 공기 중(흙 밖)에 두세요.\n" +
-            "② 5초 이상 기다리세요. (아두이노 전송 주기)\n" +
-            "③ 확인을 누르면 현재 값이 건조 기준으로 기록됩니다.",
-            "센서 보정", JOptionPane.INFORMATION_MESSAGE);
+        // ── 자동 보정 다이얼로그 실행 (CalibrationDialog에 UI·CalibrationService에 로직 위임) ──
+        CalibrationDialog calDialog = new CalibrationDialog(this, sensor);
+        calDialog.setVisible(true); // modal: 보정 완료 또는 취소까지 대기
 
-        int dryValue = sensor.readValue();
-        if (dryValue < 0) {
-            JOptionPane.showMessageDialog(this,
-                "센서 값을 수신하지 못했습니다.\n" +
-                "아두이노가 연결되어 있는지 확인하고 다시 시도하세요.",
-                "오류", JOptionPane.ERROR_MESSAGE);
+        int[] calibResult = calDialog.getResult();
+        if (calibResult == null) {
+            // 취소 또는 타임아웃 → 센서 연결 해제 후 종료
+            sensor.disconnect();
             return;
         }
 
-        // ── 보정 2단계: 물 속 (포화 기준, 100%) ────────────────
-        JOptionPane.showMessageDialog(this,
-            "【보정 2단계 - 포화 기준】\n\n" +
-            "① 센서를 물에 완전히 담그세요.\n" +
-            "② 5초 이상 기다리세요.\n" +
-            "③ 확인을 누르면 현재 값이 포화 기준으로 기록됩니다.\n\n" +
-            "(건조 기준값: " + dryValue + ")",
-            "센서 보정", JOptionPane.INFORMATION_MESSAGE);
-
-        int wetValue = sensor.readValue();
-        if (wetValue < 0 || wetValue <= dryValue + 50) {
-            JOptionPane.showMessageDialog(this,
-                "보정 값이 올바르지 않습니다.\n" +
-                "물 속 값이 공기 중 값보다 충분히 높아야 합니다.\n\n" +
-                "공기 중: " + dryValue + " / 물 속: " + wetValue,
-                "보정 오류", JOptionPane.ERROR_MESSAGE);
-            return;
-        }
-
-        sensor.setCalibration(dryValue, wetValue);
+        // 보정값 유효성 검사는 CalibrationDialog 내부(CalibrationService)에서 완료됨
+        // null이 아닌 결과는 이미 유효성이 검증된 값이다
+        sensor.setCalibration(calibResult[0], calibResult[1]);
 
         // ── 식물 이름 입력 ───────────────────────────────────────
         String name = JOptionPane.showInputDialog(this,
             "식물 이름을 입력하세요. (생략 시 \"내 식물\"로 대체)",
             "식물 생성", JOptionPane.PLAIN_MESSAGE);
-        if (name == null) return; // 취소
+        if (name == null) { sensor.disconnect(); return; } // 취소
 
         // ── 센서 삽입 안내 ───────────────────────────────────────
         int ready = JOptionPane.showConfirmDialog(this,
             "센서를 화분에 꽂은 후 확인을 누르세요.",
             "센서 삽입", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
-        if (ready != JOptionPane.OK_OPTION) return;
+        if (ready != JOptionPane.OK_OPTION) { sensor.disconnect(); return; }
 
         // ── 등록 ────────────────────────────────────────────────
         Plant plant = new Plant(name);
         if (hub.addPlantPot(pin, plant, sensor)) {
             setSlotOccupied(pin, plant.toString());
+        } else {
+            sensor.disconnect();
         }
     }
+
 
     // ── 슬롯 상태 변경 ──────────────────────────────────────────
 
@@ -207,15 +184,30 @@ public class ControlUI extends JFrame {
         valueLabels[pin].setText("수분: --");
         valueLabels[pin].setForeground(Color.DARK_GRAY);
         actionButtons[pin].setText("식물 생성");
-        waterButtons[pin].setVisible(false);
         slotPanels[pin].setBackground(new Color(245, 245, 240));
+
+        // "수분량 체크" 버튼 제거
+        if (checkButtons[pin] != null) {
+            btnPanels[pin].remove(checkButtons[pin]);
+            checkButtons[pin] = null;
+            btnPanels[pin].setLayout(new GridLayout(1, 1));
+            btnPanels[pin].revalidate();
+            btnPanels[pin].repaint();
+        }
     }
 
     private void setSlotOccupied(int pin, String plantName) {
         nameLabels[pin].setText(plantName);
         valueLabels[pin].setText("수분: 측정 중...");
         actionButtons[pin].setText("삭제");
-        waterButtons[pin].setVisible(true);
+
+        // "수분량 체크" 버튼 동적 생성 및 추가
+        checkButtons[pin] = new JButton("수분량 체크 💧");
+        checkButtons[pin].addActionListener(e -> onCheckButton(pin));
+        btnPanels[pin].setLayout(new GridLayout(1, 2, 4, 0));
+        btnPanels[pin].add(checkButtons[pin]);
+        btnPanels[pin].revalidate();
+        btnPanels[pin].repaint();
     }
 
     // ── Hub가 호출하는 공개 메서드 ───────────────────────────────
@@ -229,28 +221,40 @@ public class ControlUI extends JFrame {
     public void showNotification(String message) {
         notificationArea.append(message + "\n");
         notificationArea.setCaretPosition(notificationArea.getDocument().getLength());
-
-        // 어느 화분 알림인지 파악하여 슬롯 색상 변경
-        for (Map.Entry<Integer, PlantPot> entry : hub.getPlantPots().entrySet()) {
-            int pin = entry.getKey();
-            PlantPot pot = entry.getValue();
-            if (message.contains(pot.getPlant().getName()) && pot.isNotified()) {
-                slotPanels[pin].setBackground(new Color(255, 220, 220));
-                valueLabels[pin].setForeground(Color.RED);
-                waterButtons[pin].setEnabled(true);
-            }
-        }
     }
 
     /**
-     * 특정 핀의 화분 슬롯에 센서 ADC 값을 갱신한다.
+     * 건조 알림 발송 시 해당 슬롯을 빨간색으로 강조한다.
+     * Hub이 핀 번호를 직접 전달하므로 식물 이름 문자열 파싱 없이 정확하게 동작한다.
+     *
+     * @param pin 강조할 핀 번호
+     */
+    @Override
+    public void markSlotDry(int pin) {
+        slotPanels[pin].setBackground(new Color(255, 220, 220));
+        valueLabels[pin].setForeground(Color.RED);
+    }
+
+    /**
+     * 특정 핀의 화분 슬롯에 수분 퍼센트를 갱신한다.
      * Hub의 checkPot()에서 EDT를 통해 호출된다.
      *
      * @param pin   갱신할 핀 번호
-     * @param value 최신 ADC 측정값 (-1이면 이력 없음)
+     * @param value 최신 수분 % (-1이면 이력 없음)
      */
     public void refreshPotPanel(int pin, int value) {
         if (value < 0) return;
         valueLabels[pin].setText("수분: " + value + "%");
+    }
+
+    /**
+     * 관수 감지 후 슬롯의 빨간색 강조를 원래 색상으로 되돌린다.
+     * Hub의 checkPot()에서 EDT를 통해 호출된다.
+     *
+     * @param pin 초기화할 핀 번호
+     */
+    public void resetPotPanel(int pin) {
+        slotPanels[pin].setBackground(new Color(245, 245, 240));
+        valueLabels[pin].setForeground(Color.DARK_GRAY);
     }
 }

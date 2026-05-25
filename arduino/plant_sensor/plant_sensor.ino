@@ -26,7 +26,7 @@ const char* CLIENT_ID   = "uno-r4-plant-sensor";
 // ── 센서 핀 & 토픽 설정 ─────────────────────────────────────────
 // UNO R4 WiFi는 A0~A5 핀을 그대로 사용 (Java 코드 핀 번호와 1:1 대응)
 const int  SENSOR_COUNT  = 6;
-const int  SENSOR_PINS[] = {A0, A1, A2, A3, A4, A5};
+const int  SENSOR_PINS[] = {A0, A1, A2, A3, A4, A5}; 
 const char* TOPICS[]     = {
     "sensor/A0",
     "sensor/A1",
@@ -83,13 +83,6 @@ void loop() {
 }
 
 
-
-
-
-
-
-
-
 // ── WiFi 연결 함수───────────────────────────────────────────────────
 void connectWiFi() {
     Serial.print("WiFi 연결 중: ");
@@ -123,9 +116,11 @@ void connectMQTT() {
 
 // ── 전체 센서 읽기 & 전송 함수  ───────────────────────────────────────
 void readAndPublishAll() {
+
+    // for문 사용해서 A0 ~ A5 까지 센서값 읽고 출력
     for (int i = 0; i < SENSOR_COUNT; i++) {
         analogRead(SENSOR_PINS[i]); // 이전 채널 잔류 전압 제거 (ADC 크로스토크 방지)
-        delay(2);                   // 커패시터 안정화 대기
+        delay(2);                   // 커패시터 안정화 대기하기
         int raw   = analogRead(SENSOR_PINS[i]);
         int value = (raw <= PULLDOWN_THRESHOLD) ? NO_SENSOR_MARKER : (1023 - raw);
 
@@ -134,6 +129,7 @@ void readAndPublishAll() {
 
         mqttClient.publish(TOPICS[i], payload);
 
+        // 출력 부분
         Serial.print("[");
         Serial.print(TOPICS[i]);
         if (value == NO_SENSOR_MARKER) {

@@ -1,3 +1,5 @@
+package com.plantparentt.model;
+
 /**
  * @FileName    : Plant.java
  * @Description : 식물의 이름을 보관하는 클래스

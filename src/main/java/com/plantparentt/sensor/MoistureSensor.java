@@ -1,12 +1,11 @@
+package com.plantparentt.sensor;
+
 /**
  * @FileName    : MoistureSensor.java
  * @Description : 토양 수분 센서의 공통 인터페이스
- *                ArduinoMoistureSensor 등 구체 클래스가 이를 구현한다.
+ *                ArduinoMoistureSensor 등 구체 클래스가 해당 인터페이스를 구현한다
  */
 public interface MoistureSensor {
-
-    /** @return 센서 이름 */
-    String getSensorName();
 
     /**
      * 토양 수분 ADC 값을 반환한다.
@@ -37,4 +36,10 @@ public interface MoistureSensor {
      * @return 0~100 범위의 수분 %, 보정 전이거나 미수신이면 -1
      */
     int getMoisturePercent();
+
+    /**
+     * MQTT 연결을 해제한다.
+     * 식물 생성 취소 또는 실패 시 중복 구독을 방지하기 위해 호출한다.
+     */
+    void disconnect();
 }

@@ -1,9 +1,11 @@
+package com.plantparentt.sensor;
+
 import java.time.LocalDateTime;
 
 /**
  * @FileName    : SensorReading.java
  * @Description : 센서에서 읽은 단일 측정값과 측정 시각을 저장하는 데이터 클래스
- *                SensorHistory가 이 객체의 리스트를 보관한다.
+ *                SensorHistory가 이 객체의 리스트를 보관
  */
 public class SensorReading {
 
