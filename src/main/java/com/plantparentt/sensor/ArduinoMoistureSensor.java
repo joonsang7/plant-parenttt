@@ -84,13 +84,13 @@ public class ArduinoMoistureSensor implements MoistureSensor {
 
     /**
      * MQTT로 수신된 최신 ADC 값을 반환한다.
-     * 브로커 연결에 실패한 경우 테스트용 랜덤 값(0~1023)을 반환한다.
+     * 브로커 연결에 실패한 경우 NO_SENSOR_MARKER(-1)를 반환한다.
      *
-     * @return 토양 수분 ADC 값, 미수신이면 -1
+     * @return 토양 수분 ADC 값, 미연결·미수신이면 -1
      */
     @Override
     public int readValue() {
-        if (!connected) return (int)(Math.random() * 1023);
+        if (!connected) return NO_SENSOR_MARKER; // 연결 실패 시 테스트용 랜덤 값 대신 NO_SENSOR_MARKER(-1) 반환하도록 변경했습니다.
         return latestValue;
     }
 
