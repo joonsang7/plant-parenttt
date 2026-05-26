@@ -1,9 +1,9 @@
 package com.plantparentt.service;
 
 /**
- * @FileName    : PlantMonitorView.java
+ * @FileName : PlantMonitorView.java
  * @Description : Hub이 UI 계층에 상태를 전달하기 위한 인터페이스
- *                Hub은 이 인터페이스에만 의존하고, 구체적인 UI 구현체(ControlUI)를 알지 못한다. (DIP)
+ *              Hub은 이 인터페이스에만 의존하고, 구체적인 UI 구현체(ControlUI)를 알지 못하게 한다 (DIP)
  */
 public interface PlantMonitorView {
 
@@ -18,7 +18,7 @@ public interface PlantMonitorView {
      * 특정 핀의 화분 슬롯에 수분 퍼센트를 갱신하기 위한 메서드
      *
      * @param pin   갱신할 핀 번호
-     * @param value 최신 수분 % (-1이면 이력 없음)
+     * @param value 최신 수분 % (-1이면 이력 없음을 의미)
      */
     void refreshPotPanel(int pin, int value);
 

@@ -38,6 +38,13 @@ public interface MoistureSensor {
     int getMoisturePercent();
 
     /**
+     * MQTT 브로커에 연결된 상태인지 반환한다.
+     *
+     * @return 연결 중이면 true, 연결 실패 또는 해제 상태이면 false
+     */
+    boolean isConnected();
+
+    /**
      * MQTT 연결을 해제한다.
      * 식물 생성 취소 또는 실패 시 중복 구독을 방지하기 위해 호출한다.
      */

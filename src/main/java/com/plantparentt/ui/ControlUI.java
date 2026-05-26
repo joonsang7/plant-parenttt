@@ -1,5 +1,6 @@
 package com.plantparentt.ui;
 
+import com.plantparentt.config.AppConfig;
 import com.plantparentt.sensor.MoistureSensor;
 import com.plantparentt.service.Hub;
 import com.plantparentt.service.PlantMonitorView;
@@ -19,7 +20,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
 
     private final Hub hub;
 
-    // UI 컴포넌트
+    // UI 컴포넌트 목록은 배열로 관리하여 인덱스(핀 번호)로 쉽게 접근할 수 있도록 했습니다
     private final JPanel[] slotPanels = new JPanel[MAX_POTS];
     private final JPanel[] btnPanels = new JPanel[MAX_POTS]; // 버튼 컨테이너 (동적 추가/제거용)
     private final JLabel[] nameLabels = new JLabel[MAX_POTS];
@@ -28,7 +29,8 @@ public class ControlUI extends JFrame implements PlantMonitorView {
     private final JButton[] checkButtons = new JButton[MAX_POTS]; // 수분량 체크 (식물 등록 시 생성)
     private final JTextArea notificationArea;
 
-    // ── 생성자 ─────────────────────────────────────────────
+    // ── ControlUI 생성자 ─────────────────────────────────────────────
+
     // Hub 인스턴스를 주입받아 GUI를 초기화한다.
     // ControlUI는 PlantMonitorView를 구현하여 Hub에 view로 등록되고,
     // Hub는 PlantMonitorView 인터페이스를 통해 알림·갱신을 전달한다. (DIP)
@@ -36,7 +38,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         this.hub = hub;
         hub.setView(this);
 
-        // ── 프레임 설정 ───────────────────────────────────────────
+        // ── 프레임 설정 부분 ───────────────────────────────────────────
         setTitle("그린벨 🌿");
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setSize(760, 520);
@@ -134,6 +136,22 @@ public class ControlUI extends JFrame implements PlantMonitorView {
     private void showCreateDialog(int pin) {
         // ── 센서 객체 생성 (Hub → SensorFactory에 위임) ──────────
         MoistureSensor sensor = hub.createSensor(pin);
+
+        // ── MQTT 연결 실패 시 경고 팝업 ──────────────────────────
+        // 앱 시작 시 브로커 연결을 확인했더라도, 식물 생성 시점에 브로커가 끊길 수 있으므로 재확인한다
+        if (!sensor.isConnected()) {
+            JOptionPane.showMessageDialog(
+                this,
+                "센서가 MQTT 브로커에 연결되지 않았습니다.\n"
+                    + "브로커 IP : " + AppConfig.BROKER_IP + "\n"
+                    + "포트      : " + AppConfig.BROKER_PORT + "\n\n"
+                    + "Mosquitto가 실행 중인지 확인해 주세요.",
+                "센서 연결 실패",
+                JOptionPane.ERROR_MESSAGE
+            );
+            sensor.disconnect();
+            return;
+        }
 
         // ── 자동 보정 다이얼로그 실행 (CalibrationDialog에 UI·CalibrationService에 로직 위임) ──
         CalibrationDialog calDialog = new CalibrationDialog(this, sensor);

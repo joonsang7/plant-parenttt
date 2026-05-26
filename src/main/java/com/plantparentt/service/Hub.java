@@ -5,6 +5,8 @@ import com.plantparentt.model.PlantPot;
 import com.plantparentt.sensor.ArduinoMoistureSensor;
 import com.plantparentt.sensor.MoistureSensor;
 
+import java.net.InetSocketAddress;
+import java.net.Socket;
 import java.util.*;
 import java.util.concurrent.*;
 
@@ -53,6 +55,21 @@ public class Hub {
      */
     public static Hub getInstance() {
         return INSTANCE;
+    }
+
+    /**
+     * MQTT 브로커에 TCP 소켓으로 연결 가능한지 확인한다.
+     * 3초 내에 응답이 없으면 연결 불가로 판단한다.
+     *
+     * @return 브로커에 연결 가능하면 true, 불가능하면 false
+     */
+    public static boolean isBrokerReachable() {
+        try (Socket socket = new Socket()) {
+            socket.connect(new InetSocketAddress(AppConfig.BROKER_IP, AppConfig.BROKER_PORT), 3000);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /** UI 참조를 설정하는 메서드. 알림 표시에 사용된다. */

@@ -73,6 +73,16 @@ public class ArduinoMoistureSensor implements MoistureSensor {
 
 
     /**
+     * MQTT 브로커에 연결된 상태인지 반환한다.
+     *
+     * @return 연결 중이면 true, 연결 실패 또는 해제 상태이면 false
+     */
+    @Override
+    public boolean isConnected() {
+        return connected;
+    }
+
+    /**
      * MQTT로 수신된 최신 ADC 값을 반환한다.
      * 브로커 연결에 실패한 경우 테스트용 랜덤 값(0~1023)을 반환한다.
      *
