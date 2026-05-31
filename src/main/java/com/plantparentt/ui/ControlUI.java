@@ -138,7 +138,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         MoistureSensor sensor = hub.createSensor(pin);
 
         // ── MQTT 연결 실패 시 경고 팝업 ──────────────────────────
-        // App Class 시작 시 브로커 연결을 확인했더라도, 식물 생성 시점에 브로커가 끊길 수 있으므로 재확인하는 코드 입니다
+        // App Class 시작 시 브로커 연결을 확인했더라도, 식물 생성 시점에 브로커가 끊길 수 있으므로 재확인하는 코드입니다
         if (!sensor.isConnected()) {
             JOptionPane.showMessageDialog(
                     this,
