@@ -12,27 +12,24 @@ import java.util.concurrent.*;
 
 /**
  * @FileName : Hub.java
- * @Description : 모든 화분(PlantPot)을 관리하는 중앙 컨트롤러 (Singleton)
- *              ScheduledExecutorService로 각 화분의 체크 주기를 개별 관리
- *              센서 데이터 확인 → 건조 판단 → GUI 알림 순서로 동작한다
+ * @Description : 모든 화분을 관리하는 중앙 컨트롤러 (Singleton) 역할 클래스입니다
+ *              ScheduledExecutorService로 각 화분의 체크 주기를 개별 관리합니다
+ *              (센서 데이터 확인 → 건조 판단 → GUI 알림 순서로 동작!)
  */
+
 public class Hub {
 
-    /** 아두이노 아날로그 핀은 A0~A5 까지 존재하므로 최대 화분 수는 6개로 고정 */
+    /** 아두이노 아날로그 핀은 A0~A5 까지 존재하므로 최대 화분 수는 6개로 고정했습니다 */
     public static final int MAX_POTS = 6;
 
-    // Eager initialization: JVM 클래스 로딩 시 단 한 번만 생성 → 별도 동기화 불필요
-    // Singleton 패턴을 적용하여 Hub 클래스의 단일 인스턴스를 제공한다. 앱 전체에서 이 인스턴스를 공유하여 화분 관리와 센서 체크를
-    // 중앙 집중식으로 처리한다. Hub는 ControlUI와 PlantPot 간의 중개자 역할을 하며, PlantMonitorView
-    // 인터페이스를 통해 ControlUI에 알림과 갱신을 전달한다.
-    // 하나만 존재하도록 하기 위해서 생성자를 private으로 막고, 클래스 로딩 시 단 한 번만 생성되는 INSTANCE 상수를 제공한다.
-    // 이렇게 하면 멀티스레드 환경에서도 안전하게 Singleton을 구현할 수 있다.
+    // 생성자를 private으로 막고, 클래스 로딩 시 한 번만 생성되는 INSTANCE 상수를 제공하여 Singleton 패턴구현했습니다
+    // 이를 통해 Hub 클래스의 인스턴스는 애플리케이션 전체에서 하나만 존재하도록 보장됩니다. ControlUI에서는
+    // Hub.getInstance()를 호출하여 이 인스턴스를 얻어와 GUI와 연결합니다.
     private static final Hub INSTANCE = new Hub();
 
     // 핀 번호 → PlantPot 매핑 (화분 관리용)
-    // plantPots는 화분을 담는 중앙 저장소 역할을 한다. Hub는 plantPots를 통해 각 핀에 어떤 화분이 등록되어 있는지
-    // 관리한다. 화분 등록 시 센서 객체도 함께 전달하여 PlantPot이 센서 데이터를 직접 읽을 수 있도록 한다. Hub는 PlantPot과
-    // 센서 객체를 함께 관리하며, 스케줄러로 주기적인 체크 작업을 등록한다.
+    // plantPots는 화분을 담는 중앙 저장소 역할입니다. Hub는 plantPots를 통해 각 핀에 어떤 화분이 등록되어 있는지
+    // 관리합니다. 화분 등록 시 센서 객체도 함께 전달하여 PlantPot이 센서 데이터를 직접 읽을 수 있도록 했습니다.
     private final Map<Integer, PlantPot> plantPots = new LinkedHashMap<>();
 
     // 핀 번호 → 건조 체크 작업 매핑 (6시간 주기, 화분 제거 시 작업 취소용)
@@ -46,7 +43,7 @@ public class Hub {
 
     private PlantMonitorView view;
 
-    /** 생성자를 private으로 막아 외부에서 new Hub() 불가하도록 하기 (Singleton 패턴) */
+    /** 생성자를 private으로 막아 생성자를 이용한 외부 생성 불가하도록 함 */
     private Hub() {
     }
 
@@ -60,8 +57,9 @@ public class Hub {
     }
 
     /**
-     * MQTT 브로커에 TCP 소켓으로 연결 가능한지 확인한다.
-     * 3초 내에 응답이 없으면 연결 불가로 판단한다.
+     * MQTT 브로커에 TCP 소켓으로 연결 가능한지 확인하는 메서드
+     * 3초 내에 응답이 없으면 연결 불가로 판단하여 false를 반환한다. 앱 시작 시 브로커 연결 가능 여부를 먼저 확인하여, 브로커가
+     * 응답하지 않으면 오류 팝업을 띄우고 종료하게 했습니다.
      *
      * @return 브로커에 연결 가능하면 true, 불가능하면 false
      */
@@ -74,14 +72,15 @@ public class Hub {
         }
     }
 
-    /** UI 참조를 설정하는 메서드. 알림 표시에 사용된다. */
+    /** UI 참조를 설정하는 메서드. 알림 표시에 사용 */
     public void setView(PlantMonitorView view) {
         this.view = view;
     }
 
     /**
-     * 지정한 핀 번호에 대한 센서를 생성하고 반환하는 메서드. ControlUI에서 새 화분 등록 시 호출된다.
-     * 현재 ArduinoMoistureSensor로 고정되어 있지만, 향후 다양한 센서 타입을 지원하기 위해 인터페이스 기반으로 설계(DIP)
+     * 지정한 핀 번호에 대한 센서를 생성하고 반환하는 메서드. ControlUI에서 새 화분 등록 시 호출됩니다
+     * 현재 ArduinoMoistureSensor로 고정되어 있지만, 향후 다양한 센서 타입을 지원할 수도 있는 상황을 가정해서
+     * 인터페이스 기반으로 설계했습니다(DIP)
      *
      * @param pin 아두이노 아날로그 핀 번호 (0~5)
      * @return 생성된 MoistureSensor 인스턴스
@@ -93,15 +92,15 @@ public class Hub {
 
     /**
      * 새 화분을 등록하고 해당 화분의 센서 체크 스케줄을 시작하는 메서드
-     * 화분 등록 시 최대 수 초과 또는 핀 중복이면 false를 반환하여 GUI에서 사용자에게 알릴 수 있도록 한다. 성공 시 true 반환
-     * 화분 등록 시 센서 객체를 생성하여 PlantPot에 전달한다. Hub는 PlantPot과 센서 객체를 함께 관리하며, 스케줄러로 주기적인
-     * 체크 작업을 등록한다.
+     * 화분 등록 시 최대 수 초과 또는 핀 중복이면 false를 반환하여 GUI에서 사용자에게 알릴 수 있도록 했고
+     * 화분 등록 시 센서 객체를 생성하여 PlantPot에 전달합니다.
      *
      * @param pin       아두이노 아날로그 핀 번호 (0~5)
      * @param plantName 화분에 심긴 식물 이름
      * @param sensor    화분에 꽂힌 센서 객체
      * @return 등록 성공이면 true, 최대 수 초과 또는 핀 중복이면 false.
      */
+
     public boolean addPlantPot(int pin, String plantName, MoistureSensor sensor) {
 
         // 실패하는 경우: 최대 화분 수 초과 또는 핀 중복 → GUI에서 사용자에게 알릴 수 있도록 false 반환
@@ -116,27 +115,10 @@ public class Hub {
 
         // 성공하는 경우: 화분 객체 생성 → 센서 체크 스케줄 등록 → true 반환
         PlantPot pot = new PlantPot(pin, plantName, sensor);
-        // 등록 성공 시에는 plantPots에 화분을 추가한다. Hub는 PlantPot과 센서 객체를 함께 관리하며,
-        // 스케줄러로 주기적인 체크 작업을 등록한다.
+        // 등록 성공 시에는 plantPots에 화분을 추가하고 Hub는 PlantPot과 센서 객체를 함께 관리합니다
         plantPots.put(pin, pot);
 
-        // 건조 감지: 고정 주기로 스케줄 등록 (이력 누적 → 24시간 유지 판단)
-
-        /**
-         * task 변수는 스케줄된 작업을 나타내는 ScheduledFuture<?> 객체로, 이 객체를 통해 작업의 상태를 추적하거나 취소할 수
-         * 있다.
-         * Hub에서는 화분 제거 시 이 작업을 취소하기 위해 ScheduledFuture<?> 객체를 저장한다.
-         * ScheduledFuture<?>는 스케줄된 작업이 Runnable인지 Callable인지에 관계없이 사용할 수 있다.
-         * 
-         * runnable과 callable의 차이 :
-         * - Runnable: run() 메서드를 구현하며, 실행 후에 반환값이 없다. 단순히 작업을 수행하는 데 사용된다.
-         * - Callable: call() 메서드를 구현하며, 실행 후에 결과를 반환할 수 있다. 예외를 던질 수도 있다.
-         * 
-         * Hub에서는 checkPot(pot) 메서드를 Runnable로 등록하여, 주기적으로 화분의 상태를 체크하지만,
-         * 이 작업이 완료된 후에 어떤 결과도 반환하지 않아야 하므로 Runnable을 사용하여 스케줄링한다
-         * 
-         */
-
+        // 건조 감지: 고정 주기로 스케줄 등록 -
         ScheduledFuture<?> task = scheduler.scheduleAtFixedRate(
                 () -> checkPot(pot),
                 0, AppConfig.CHECK_INTERVAL_HOURS, TimeUnit.HOURS);

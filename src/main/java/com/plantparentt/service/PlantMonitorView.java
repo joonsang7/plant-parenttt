@@ -2,8 +2,8 @@ package com.plantparentt.service;
 
 /**
  * @FileName : PlantMonitorView.java
- * @Description : Hub이 UI 계층에 상태를 전달하기 위한 인터페이스
- *              Hub은 이 인터페이스에만 의존하고, 구체적인 UI 구현체(ControlUI)를 알지 못하게 한다 (DIP)
+ * @Description : Hub가 UI 계층에 상태를 전달하기 위한 인터페이스
+ *              Hub는 이 인터페이스에만 의존하고, 구체적인 UI 구현체(ControlUI)를 알지 못하게 했습니다
  */
 public interface PlantMonitorView {
 
@@ -24,7 +24,7 @@ public interface PlantMonitorView {
 
     /**
      * 건조 알림 발송 시 해당 슬롯을 빨간색으로 강조하는 메서드
-     * Hub이 핀 번호를 직접 전달하므로 이름 문자열 파싱 없이 해당 슬롯만 처리하도록 한다
+     * Hub이 핀 번호를 직접 전달하므로 이름 문자열 파싱 없이 해당 슬롯만 처리
      *
      * @param pin 강조할 핀 번호
      */

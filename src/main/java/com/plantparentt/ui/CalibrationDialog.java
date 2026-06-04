@@ -11,33 +11,33 @@ import java.util.List;
 import java.util.concurrent.ExecutionException;
 
 /**
- * @FileName    : CalibrationDialog.java
+ * @FileName : CalibrationDialog.java
  * @Description : 센서 보정 UI를 담당하는 모달 다이얼로그 (SRP)
- *                보정 비즈니스 로직은 CalibrationService에 위임하며,
- *                이 클래스는 진행 상황 표시·단계 전환·결과 반환만 담당한다.
+ *              보정 비즈니스 로직은 CalibrationService에 위임하며,
+ *              이 클래스는 진행 상황 표시·단계 전환·결과 반환만 담당한다.
  *
- * 진행 순서:
- *   1단계(건조) - 자동 측정 → 완료 시 '다음' 버튼 활성화
- *   2단계(포화) - 자동 측정 → 완료 시 다이얼로그 자동 닫힘
+ *              진행 순서:
+ *              1단계(건조) - 자동 측정 → 완료 시 '다음' 버튼 활성화
+ *              2단계(포화) - 자동 측정 → 완료 시 다이얼로그 자동 닫힘
  */
 public class CalibrationDialog extends JDialog {
 
-    private final MoistureSensor    sensor;
+    private final MoistureSensor sensor;
     private final CalibrationService calibService = new CalibrationService();
 
     // 보정 결과
-    private int     dryValue  = -1;
-    private int     wetValue  = -1;
+    private int dryValue = -1;
+    private int wetValue = -1;
     private boolean cancelled = false;
 
     // UI 컴포넌트
-    private JLabel   phaseLabel;
+    private JLabel phaseLabel;
     private JTextArea instructionArea;
-    private JLabel   statusLabel;
-    private JLabel   progressLabel;
-    private JLabel   valueLabel;
-    private JButton  nextButton;
-    private JButton  cancelButton;
+    private JLabel statusLabel;
+    private JLabel progressLabel;
+    private JLabel valueLabel;
+    private JButton nextButton;
+    private JButton cancelButton;
 
     private SwingWorker<Integer, int[]> activeWorker;
 
@@ -80,9 +80,9 @@ public class CalibrationDialog extends JDialog {
         centerPanel.add(instructionArea, BorderLayout.CENTER);
 
         JPanel infoPanel = new JPanel(new GridLayout(3, 1, 2, 2));
-        statusLabel   = new JLabel(" ", JLabel.CENTER);
+        statusLabel = new JLabel(" ", JLabel.CENTER);
         progressLabel = new JLabel("0 / " + AppConfig.CALIB_MAX_CHECKS + "회 검사", JLabel.CENTER);
-        valueLabel    = new JLabel("현재 ADC 값: 측정 대기 중", JLabel.CENTER);
+        valueLabel = new JLabel("현재 ADC 값: 측정 대기 중", JLabel.CENTER);
         statusLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
         progressLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
         valueLabel.setFont(new Font("SansSerif", Font.PLAIN, 12));
@@ -95,7 +95,7 @@ public class CalibrationDialog extends JDialog {
 
         // 하단 버튼
         cancelButton = new JButton("취소");
-        nextButton   = new JButton("다음 ▶");
+        nextButton = new JButton("다음 ▶");
         nextButton.setEnabled(false);
         cancelButton.addActionListener(e -> onCancel());
         nextButton.addActionListener(e -> onNextButton());
@@ -124,10 +124,9 @@ public class CalibrationDialog extends JDialog {
     private void startDryPhase() {
         phaseLabel.setText("【보정 1단계 - 건조 기준】");
         instructionArea.setText(
-            "① 마른 상태의 센서를 공기 중(흙 밖)에 두세요. (물기를 제거해 주세요)\n" +
-            "② 값이 안정되면 자동으로 측정을 완료합니다. (최소 20초 ~ 최대 1분)\n" +
-            "③ 측정 완료 후 '다음 ▶' 버튼을 눌러 포화 기준 측정으로 넘어가세요."
-        );
+                "① 마른 상태의 센서를 공기 중(흙 밖)에 두세요. (물기를 제거해 주세요)\n" +
+                        "② 값이 안정되면 자동으로 측정을 완료합니다. (최소 20초 ~ 최대 1분)\n" +
+                        "③ 측정 완료 후 '다음 ▶' 버튼을 눌러 포화 기준 측정으로 넘어가세요.");
         updateStatus("건조 기준 측정 중...", Color.DARK_GRAY);
         progressLabel.setText("0 / " + AppConfig.CALIB_MAX_CHECKS + "회 검사");
         valueLabel.setText("현재 ADC 값: 측정 대기 중");
@@ -139,22 +138,23 @@ public class CalibrationDialog extends JDialog {
             protected Integer doInBackground() throws InterruptedException {
                 // CalibrationService에 비즈니스 로직 위임 (DIP)
                 return calibService.measureStableValue(sensor,
-                    (checkNum, value) -> publish(new int[]{checkNum, value}));
+                        (checkNum, value) -> publish(new int[] { checkNum, value }));
             }
 
             @Override
             protected void process(List<int[]> chunks) {
-                int[] latest   = chunks.get(chunks.size() - 1);
-                int   checkNum = latest[0];
-                int   adcValue = latest[1];
+                int[] latest = chunks.get(chunks.size() - 1);
+                int checkNum = latest[0];
+                int adcValue = latest[1];
                 progressLabel.setText(checkNum + " / " + AppConfig.CALIB_MAX_CHECKS + "회 검사");
                 valueLabel.setText("현재 ADC 값: " +
-                    (adcValue < 0 ? "수신 대기 중" : String.valueOf(adcValue)));
+                        (adcValue < 0 ? "수신 대기 중" : String.valueOf(adcValue)));
             }
 
             @Override
             protected void done() {
-                if (isCancelled() || cancelled) return;
+                if (isCancelled() || cancelled)
+                    return;
                 try {
                     int result = get();
                     if (result >= 0) {
@@ -165,7 +165,8 @@ public class CalibrationDialog extends JDialog {
                         showTimeoutError();
                     }
                 } catch (InterruptedException | ExecutionException e) {
-                    if (!cancelled) showTimeoutError();
+                    if (!cancelled)
+                        showTimeoutError();
                 }
             }
         };
@@ -176,11 +177,10 @@ public class CalibrationDialog extends JDialog {
     private void startWetPhase() {
         phaseLabel.setText("【보정 2단계 - 포화 기준】");
         instructionArea.setText(
-            "① 센서를 물에 완전히 담그세요.\n" +
-            "② 값이 안정되면 자동으로 측정을 완료합니다. (최소 20초 ~ 최대 1분)\n" +
-            "③ 측정 완료 후 자동으로 다음 단계로 넘어갑니다.\n" +
-            "   (건조 기준값: " + dryValue + ")"
-        );
+                "① 센서를 물에 완전히 담그세요.\n" +
+                        "② 값이 안정되면 자동으로 측정을 완료합니다. (최소 20초 ~ 최대 1분)\n" +
+                        "③ 측정 완료 후 자동으로 다음 단계로 넘어갑니다.\n" +
+                        "   (건조 기준값: " + dryValue + ")");
         updateStatus("포화 기준 측정 중...", Color.DARK_GRAY);
         progressLabel.setText("0 / " + AppConfig.CALIB_MAX_CHECKS + "회 검사");
         valueLabel.setText("현재 ADC 값: 측정 대기 중");
@@ -190,22 +190,23 @@ public class CalibrationDialog extends JDialog {
             @Override
             protected Integer doInBackground() throws InterruptedException {
                 return calibService.measureStableValue(sensor,
-                    (checkNum, value) -> publish(new int[]{checkNum, value}));
+                        (checkNum, value) -> publish(new int[] { checkNum, value }));
             }
 
             @Override
             protected void process(List<int[]> chunks) {
-                int[] latest   = chunks.get(chunks.size() - 1);
-                int   checkNum = latest[0];
-                int   adcValue = latest[1];
+                int[] latest = chunks.get(chunks.size() - 1);
+                int checkNum = latest[0];
+                int adcValue = latest[1];
                 progressLabel.setText(checkNum + " / " + AppConfig.CALIB_MAX_CHECKS + "회 검사");
                 valueLabel.setText("현재 ADC 값: " +
-                    (adcValue < 0 ? "수신 대기 중" : String.valueOf(adcValue)));
+                        (adcValue < 0 ? "수신 대기 중" : String.valueOf(adcValue)));
             }
 
             @Override
             protected void done() {
-                if (isCancelled() || cancelled) return;
+                if (isCancelled() || cancelled)
+                    return;
                 try {
                     int result = get();
                     if (result >= 0) {
@@ -215,10 +216,10 @@ public class CalibrationDialog extends JDialog {
                         if (!calibService.isCalibrationValid(dryValue, wetValue)) {
                             updateStatus("⚠ 보정 값이 올바르지 않습니다.", Color.RED);
                             JOptionPane.showMessageDialog(CalibrationDialog.this,
-                                "보정 값이 올바르지 않습니다.\n" +
-                                "물 속 값이 공기 중 값보다 충분히 높아야 합니다.\n\n" +
-                                "공기 중(건조): " + dryValue + "  /  물 속(포화): " + wetValue,
-                                "보정 오류", JOptionPane.ERROR_MESSAGE);
+                                    "보정 값이 올바르지 않습니다.\n" +
+                                            "물 속 값이 공기 중 값보다 충분히 높아야 합니다.\n\n" +
+                                            "공기 중(건조): " + dryValue + "  /  물 속(포화): " + wetValue,
+                                    "보정 오류", JOptionPane.ERROR_MESSAGE);
                             cancelled = true;
                             dispose();
                             return;
@@ -233,7 +234,8 @@ public class CalibrationDialog extends JDialog {
                         showTimeoutError();
                     }
                 } catch (InterruptedException | ExecutionException e) {
-                    if (!cancelled) showTimeoutError();
+                    if (!cancelled)
+                        showTimeoutError();
                 }
             }
         };
@@ -251,7 +253,8 @@ public class CalibrationDialog extends JDialog {
     /** '취소' 버튼 또는 창 닫기 시 호출된다. */
     private void onCancel() {
         cancelled = true;
-        if (activeWorker != null) activeWorker.cancel(true);
+        if (activeWorker != null)
+            activeWorker.cancel(true);
         dispose();
     }
 
@@ -259,10 +262,10 @@ public class CalibrationDialog extends JDialog {
     private void showTimeoutError() {
         updateStatus("⚠ 측정 실패: 값이 1분 내에 안정되지 않았습니다.", Color.RED);
         JOptionPane.showMessageDialog(this,
-            "센서 값이 1분(60초) 내에 안정되지 않았습니다.\n\n" +
-            "• 아두이노가 올바르게 연결되어 있는지 확인하세요.\n" +
-            "• 센서가 움직이지 않도록 고정한 뒤 다시 시도하세요.",
-            "보정 오류", JOptionPane.ERROR_MESSAGE);
+                "센서 값이 1분(60초) 내에 안정되지 않았습니다.\n\n" +
+                        "• 아두이노가 올바르게 연결되어 있는지 확인하세요.\n" +
+                        "• 센서가 움직이지 않도록 고정한 뒤 다시 시도하세요.",
+                "보정 오류", JOptionPane.ERROR_MESSAGE);
         cancelled = true;
         dispose();
     }
@@ -283,7 +286,7 @@ public class CalibrationDialog extends JDialog {
      */
     public int[] getResult() {
         if (!cancelled && dryValue >= 0 && wetValue >= 0) {
-            return new int[]{dryValue, wetValue};
+            return new int[] { dryValue, wetValue };
         }
         return null;
     }

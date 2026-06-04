@@ -19,7 +19,7 @@ const char* WIFI_SSID     = "SK_WiFiGIGA359A";      // ← 본인 WiFi 이름
 const char* WIFI_PASSWORD = "1803006166";   // ← 본인 WiFi 비밀번호
 
 // ── MQTT 브로커 설정 ────────────────────────────────────────────
-const char* BROKER_IP   = "192.168.35.111";  // ← Mosquitto가 실행 중인 PC/맥북 IP
+const char* BROKER_IP   = "192.168.35.117";  // ← Mosquitto가 실행 중인 PC/맥북 IP
 const int   BROKER_PORT = 1883;
 const char* CLIENT_ID   = "uno-r4-plant-sensor";
 

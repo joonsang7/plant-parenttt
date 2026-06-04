@@ -9,12 +9,10 @@ import javax.swing.*;
 /**
  * @FileName : App.java
  * @Description : 식집사 애플리케이션 진입점
- *              Hub(Singleton)를 초기화하고 GUI를 실행한다.
+ *              Hub(Singleton)를 초기화하고 GUI를 실행
  *
- *              앱 시작 시 MQTT 브로커 연결 가능 여부를 메인 스레드에서 먼저 확인한다.
- *              브로커가 응답하지 않으면 오류 팝업을 띄우고 종료한다.
- *              확인 자체를 EDT 안에서 하면 네트워크 대기(최대 3초) 동안 UI 전체가 멈추기 때문에
- *              네트워크 체크는 메인 스레드에서, GUI 생성만 EDT에서 실행한다.
+ *              앱 시작 시 MQTT 브로커 연결 가능 여부를 메인 스레드에서 먼저 확인해서
+ *              브로커가 응답하지 않으면 오류 팝업을 띄우고 종료하게 했습니다.
  */
 public class App {
     public static void main(String[] args) {
@@ -34,7 +32,7 @@ public class App {
         }
 
         // ── ② GUI 실행 (EDT) ──────────────────────────────────────────────────────
-        // Swing 컴포넌트는 반드시 EDT에서 생성해야 스레드 안전성이 보장된다
+        // Swing 컴포넌트는 반드시 EDT에서 생성해야 스레드 안전성을 보장 가능
         SwingUtilities.invokeLater(() -> {
             Hub hub = Hub.getInstance();
             new ControlUI(hub);

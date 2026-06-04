@@ -12,7 +12,7 @@ import java.awt.*;
 /**
  * @FileName : ControlUI.java
  * @Description : 식집사 메인 GUI 클래스 (Java Swing)
- *              화분 슬롯 6칸 표시, 식물 생성/삭제/물주기 기능, 알림 패널을 제공한다.
+ *              화분 슬롯 6칸 표시, 식물 생성/삭제/물주기 기능, 알림 패널을 제공하는 JFrame입니다
  */
 public class ControlUI extends JFrame implements PlantMonitorView {
 
@@ -31,9 +31,9 @@ public class ControlUI extends JFrame implements PlantMonitorView {
 
     // ── ControlUI 생성자 ─────────────────────────────────────────────
 
-    // Hub 인스턴스를 주입받아 GUI를 초기화한다.
-    // ControlUI는 PlantMonitorView를 구현하여 Hub에 view로 등록되고,
-    // Hub는 PlantMonitorView 인터페이스를 통해 알림·갱신을 전달한다. (DIP)
+    // Hub 인스턴스를 주입받아 GUI를 초기화
+    // ControlUI는 PlantMonitorView를 구현하여 Hub에 view로 등록되고
+    // Hub는 PlantMonitorView 인터페이스를 통해 알림·갱신을 전달 -> DIP 구현하려했습니다
     public ControlUI(Hub hub) {
         this.hub = hub;
         hub.setView(this);
@@ -45,7 +45,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         setLocationRelativeTo(null);
         setLayout(new BorderLayout(8, 8));
 
-        // ── 상단: 제목 ─────────────────────────────────────
+        // ── 상단: 제목 타이틀 ─────────────────────────────────────
         JLabel title = new JLabel("🌱 그린벨", JLabel.CENTER);
         title.setFont(new Font("SansSerif", Font.BOLD, 22));
         title.setBorder(new EmptyBorder(12, 0, 4, 0));
@@ -138,7 +138,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         MoistureSensor sensor = hub.createSensor(pin);
 
         // ── MQTT 연결 실패 시 경고 팝업 ──────────────────────────
-        // App Class 시작 시 브로커 연결을 확인했더라도, 식물 생성 시점에 브로커가 끊길 수 있으므로 재확인하는 코드입니다
+        // App Class 시작 시 브로커 연결을 확인했더라도, 식물 생성 시점에 브로커가 끊길 수 있으므로 재확인
         if (!sensor.isConnected()) {
             JOptionPane.showMessageDialog(
                     this,
@@ -155,6 +155,9 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         // ── 자동 보정 다이얼로그 실행 (CalibrationDialog에 UI·CalibrationService에 로직 위임) ──
         CalibrationDialog calDialog = new CalibrationDialog(this, sensor);
         calDialog.setVisible(true); // modal: 보정 완료 또는 취소까지 대기
+        // modal 의 의미는 사용자가 보정 다이얼로그에서 "보정 완료" 또는 "취소" 버튼을 누를 때까지 이 메서드의 다음 코드가 실행되지
+        // 않는다는 것입니다.
+        // modal 의 구현은
 
         int[] calibResult = calDialog.getResult();
         if (calibResult == null) {
@@ -163,8 +166,8 @@ public class ControlUI extends JFrame implements PlantMonitorView {
             return;
         }
 
-        // 보정값 유효성 검사는 CalibrationDialog 내부(CalibrationService)에서 완료됨
-        // null이 아닌 결과는 이미 유효성이 검증된 값이다
+        // 보정값 유효성 검사는 CalibrationDialog 내부(CalibrationService)에서 완료되도록 했으므로
+        // null이 아닌 결과는 이미 유효성이 검증된 값입니다. 따라서 바로 센서에 적용하면 됩니다
         sensor.setCalibration(calibResult[0], calibResult[1]);
 
         // ── 식물 이름 입력 ───────────────────────────────────────
@@ -180,7 +183,8 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         int ready = JOptionPane.showConfirmDialog(this,
                 "센서를 화분에 꽂은 후 확인을 누르세요.",
                 "센서 삽입", JOptionPane.OK_CANCEL_OPTION, JOptionPane.INFORMATION_MESSAGE);
-        if (ready != JOptionPane.OK_OPTION) {
+        // 센서가 꽂혀있지 않거나 사용자가 취소하면 등록 취소하고 센서 연결 해제
+        if ((ready != JOptionPane.OK_OPTION) || !sensor.isInserted()) {
             sensor.disconnect();
             return;
         }
@@ -196,7 +200,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
     // ── 슬롯 상태 변경 ──────────────────────────────────────────
 
     private void setSlotEmpty(int pin) {
-        nameLabels[pin].setText("(비어있음)");
+        nameLabels[pin].setText("비어있음");
         valueLabels[pin].setText("수분: --");
         valueLabels[pin].setForeground(Color.DARK_GRAY);
         actionButtons[pin].setText("식물 생성");
@@ -227,9 +231,9 @@ public class ControlUI extends JFrame implements PlantMonitorView {
     }
 
     // ── PlantMonitorView 구현 ────────────────────────────────────
-    // Hub는 스케줄러 스레드에서 이 메서드들을 직접 호출한다.
+    // Hub는 스케줄러 스레드에서 이 메서드들을 직접 호출!
     // Swing 컴포넌트 조작은 반드시 EDT에서 실행되어야 하므로
-    // EDT dispatch 책임은 구현체인 ControlUI가 직접 담당한다.
+    // EDT dispatch 책임은 구현체인 ControlUI가 직접 담당하도록 했습니다
 
     /**
      * 알림 메시지를 화면 하단 알림 영역에 추가한다.
