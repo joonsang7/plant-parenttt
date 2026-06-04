@@ -13,8 +13,8 @@ import java.util.concurrent.ExecutionException;
 /**
  * @FileName : CalibrationDialog.java
  * @Description : 센서 보정 UI를 담당하는 모달 다이얼로그 (SRP)
- *              보정 비즈니스 로직은 CalibrationService에 위임하며,
- *              이 클래스는 진행 상황 표시·단계 전환·결과 반환만 담당한다.
+ *              보정 비즈니스 로직은 CalibrationService에 위임하고,
+ *              이 클래스는 진행 상황 표시·단계 전환·결과 반환만 담당
  *
  *              진행 순서:
  *              1단계(건조) - 자동 측정 → 완료 시 '다음' 버튼 활성화
@@ -52,7 +52,7 @@ public class CalibrationDialog extends JDialog {
         pack();
         setResizable(false);
         setLocationRelativeTo(owner);
-        // setVisible(true) 호출 후 모달 루프가 시작되면 즉시 1단계 시작
+        // setVisible(true) 호출 후 모달 루프가 시작되면 즉시 1단계(건조 상태 측정) 시작
         SwingUtilities.invokeLater(this::startDryPhase);
     }
 
@@ -120,7 +120,7 @@ public class CalibrationDialog extends JDialog {
 
     // ── 단계 실행 ────────────────────────────────────────────────
 
-    /** 건조(1단계) 측정을 시작한다. */
+    /** 건조(1단계) 측정을 시작 */
     private void startDryPhase() {
         phaseLabel.setText("【보정 1단계 - 건조 기준】");
         instructionArea.setText(
@@ -141,9 +141,10 @@ public class CalibrationDialog extends JDialog {
                         (checkNum, value) -> publish(new int[] { checkNum, value }));
             }
 
+            // 측정 진행 상황이 publish()로 전달될 때마다 UI를 업데이트하도록 process()를 오버라이드했습니다. 
             @Override
             protected void process(List<int[]> chunks) {
-                int[] latest = chunks.get(chunks.size() - 1);
+                int[] latest = chunks.get(chunks.size() - 1); //chunks은 publish()로 전달된 값들의 리스트입니다. 가장 최근에 publish된 값을 가져와서 UI에 반영합니다
                 int checkNum = latest[0];
                 int adcValue = latest[1];
                 progressLabel.setText(checkNum + " / " + AppConfig.CALIB_MAX_CHECKS + "회 검사");
@@ -173,7 +174,7 @@ public class CalibrationDialog extends JDialog {
         activeWorker.execute();
     }
 
-    /** 포화(2단계) 측정을 시작한다. 안정화되면 다이얼로그를 자동으로 닫는다. */
+    /** 포화(2단계) 측정을 시작. 안정화되면 다이얼로그를 자동으로 닫도록 하였습니다. */
     private void startWetPhase() {
         phaseLabel.setText("【보정 2단계 - 포화 기준】");
         instructionArea.setText(
@@ -186,16 +187,18 @@ public class CalibrationDialog extends JDialog {
         valueLabel.setText("현재 ADC 값: 측정 대기 중");
         nextButton.setEnabled(false);
 
+        // Swingwork를 새로 만들어 2단계 측정 시작. Swingwork는 백그라운드에서 센서 측정과 안정 판단을 수행하고, 진행 상황을 publish()로 UI에 업데이트하며, 완료 시 done()에서 결과 처리하도록 했습니다.
         activeWorker = new SwingWorker<Integer, int[]>() {
             @Override
-            protected Integer doInBackground() throws InterruptedException {
+            protected Integer doInBackground() throws InterruptedException { // throws는 CalibrationService의 measureStableValue가 InterruptedException을 던질 떄 필요합니다
                 return calibService.measureStableValue(sensor,
                         (checkNum, value) -> publish(new int[] { checkNum, value }));
             }
 
+          
             @Override
             protected void process(List<int[]> chunks) {
-                int[] latest = chunks.get(chunks.size() - 1);
+                int[] latest = chunks.get(chunks.size() - 1); 
                 int checkNum = latest[0];
                 int adcValue = latest[1];
                 progressLabel.setText(checkNum + " / " + AppConfig.CALIB_MAX_CHECKS + "회 검사");
@@ -212,7 +215,7 @@ public class CalibrationDialog extends JDialog {
                     if (result >= 0) {
                         wetValue = result;
 
-                        // ③ 보정값 유효성 검사 (CalibrationService에 위임 — SRP)
+                        // ③ 보정값 유효성 검사 (CalibrationService에 위임 — SRP를 지키기 위함)
                         if (!calibService.isCalibrationValid(dryValue, wetValue)) {
                             updateStatus("⚠ 보정 값이 올바르지 않습니다.", Color.RED);
                             JOptionPane.showMessageDialog(CalibrationDialog.this,
@@ -244,7 +247,7 @@ public class CalibrationDialog extends JDialog {
 
     // ── 버튼 핸들러 ─────────────────────────────────────────────
 
-    /** 건조 단계 완료 후 사용자가 '다음 ▶' 버튼을 클릭하면 포화 단계로 진행한다. */
+    /** 건조 단계 완료 후 사용자가 다음 버튼을 클릭하면 포화 단계로 진행 */
     private void onNextButton() {
         nextButton.setEnabled(false);
         startWetPhase();
@@ -258,7 +261,7 @@ public class CalibrationDialog extends JDialog {
         dispose();
     }
 
-    /** 1분 내에 안정값을 찾지 못한 경우 오류 메시지를 표시하고 다이얼로그를 닫는다. */
+    /** 1분 내에 안정값을 찾지 못한 경우 오류 메시지를 표시하고 다이얼로그를 닫기 */
     private void showTimeoutError() {
         updateStatus("⚠ 측정 실패: 값이 1분 내에 안정되지 않았습니다.", Color.RED);
         JOptionPane.showMessageDialog(this,
@@ -280,7 +283,7 @@ public class CalibrationDialog extends JDialog {
     // ── 결과 반환 ────────────────────────────────────────────────
 
     /**
-     * 보정 결과를 반환한다.
+     * 보정 결과를 반환하는 메서드
      *
      * @return 보정 성공 시 {dryValue, wetValue}, 취소·실패 시 null
      */

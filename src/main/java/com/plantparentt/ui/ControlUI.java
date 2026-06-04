@@ -155,9 +155,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
         // ── 자동 보정 다이얼로그 실행 (CalibrationDialog에 UI·CalibrationService에 로직 위임) ──
         CalibrationDialog calDialog = new CalibrationDialog(this, sensor);
         calDialog.setVisible(true); // modal: 보정 완료 또는 취소까지 대기
-        // modal 의 의미는 사용자가 보정 다이얼로그에서 "보정 완료" 또는 "취소" 버튼을 누를 때까지 이 메서드의 다음 코드가 실행되지
-        // 않는다는 것입니다.
-        // modal 의 구현은
+   
 
         int[] calibResult = calDialog.getResult();
         if (calibResult == null) {
@@ -236,7 +234,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
     // EDT dispatch 책임은 구현체인 ControlUI가 직접 담당하도록 했습니다
 
     /**
-     * 알림 메시지를 화면 하단 알림 영역에 추가한다.
+     * 알림 메시지를 화면 하단 알림 영역에 추가하는 메서드
      *
      * @param message 표시할 알림 메시지
      */
@@ -249,7 +247,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
     }
 
     /**
-     * 건조 알림 발송 시 해당 슬롯을 빨간색으로 강조한다.
+     * 건조 알림 발송 시 해당 슬롯을 빨간색으로 강조하는 메서드
      *
      * @param pin 강조할 핀 번호
      */
@@ -262,7 +260,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
     }
 
     /**
-     * 특정 핀의 화분 슬롯에 수분 퍼센트를 갱신한다.
+     * 특정 핀의 화분 슬롯에 수분 퍼센트를 갱신하는 메서드
      *
      * @param pin   갱신할 핀 번호
      * @param value 최신 수분 % (-1이면 이력 없음)
@@ -275,7 +273,7 @@ public class ControlUI extends JFrame implements PlantMonitorView {
     }
 
     /**
-     * 관수 감지 후 슬롯의 빨간색 강조를 원래 색상으로 되돌린다.
+     * 관수 감지 후 슬롯의 빨간색 강조를 원래 색상으로 되돌리는 메서드
      *
      * @param pin 초기화할 핀 번호
      */

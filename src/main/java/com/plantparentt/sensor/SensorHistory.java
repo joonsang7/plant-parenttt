@@ -13,16 +13,16 @@ import java.util.List;
  *
  *              스레드 안전성: 모든 public/private 메서드를 synchronized로 선언하여
  *              6시간 스케줄러 스레드와 EDT(수분량 체크 버튼)의 동시 접근으로 인한
- *              ConcurrentModificationException을 방지한다.
+ *              ConcurrentModificationException을 방지하고, 이력 데이터의 일관성을 보장하도록 했습니다 
  */
 public class SensorHistory {
 
-    // 고정 크기의 큐 대신 List를 사용하되, 오래된 기록은 주기적으로 제거하여 메모리를 절약한다.
-    // final 로 선언하여 readings 참조 자체는 변경할 수 없도록 한다. (내용은 변경 가능)
+    // 고정 크기의 큐 대신 List를 사용하되, 오래된 기록은 주기적으로 제거하여 메모리를 절약하도록 설계했고
+    // final 로 선언하여 readings 참조 자체는 변경할 수 없도록 했습니다 
     private final List<SensorReading> readings = new ArrayList<>();
 
     /**
-     * 새로운 센서 측정값을 이력에 추가한다.
+     * 새로운 센서 측정값을 이력에 추가하는 메서드
      *
      * @param value 수분 % (0~100)
      */
@@ -32,7 +32,7 @@ public class SensorHistory {
     }
 
     /**
-     * 최근 24시간 동안 측정값이 건조 임계값 이상으로 안정적으로 유지되었는지 판단한다.
+     * 최근 24시간 동안 측정값이 건조 임계값 이상으로 안정적으로 유지되었는지 판단하는 메서드
      * 조건 1: 최근 AppConfig.STABLE_HOURS 이내의 데이터가 존재할 것
      * 조건 2: 측정값 변동 폭이 AppConfig.VALUE_TOLERANCE 이내일 것 (안정)
      * 조건 3: 모든 측정값이 dryThreshold 이하일 것 (건조)
@@ -46,7 +46,7 @@ public class SensorHistory {
             return false;
 
         // "24시간 유지" 판단을 위해 최소 (STABLE_HOURS / CHECK_INTERVAL_HOURS)개의
-        // 이력이 누적되어야 한다. 이력이 부족하면 아직 판단할 수 없다고 간주한다.
+        // 이력이 누적되어야 합니다 이력이 부족하면 아직 판단할 수 없다고 간주하도록 했습니다
         int requiredReadings = AppConfig.STABLE_HOURS / AppConfig.CHECK_INTERVAL_HOURS;
         if (recent.size() < requiredReadings)
             return false;
@@ -67,15 +67,15 @@ public class SensorHistory {
     }
 
     /**
-     * 물을 준 후 이력을 초기화한다.
-     * 알림이 재발송되지 않도록 물 주기 직후에 호출한다.
+     * 물을 준 후 이력을 초기화하여 관수 알림이 재발송되지 않도록 하는 메서드
+     * 알림이 재발송되지 않도록 물 주기 직후에 호출됩니다
      */
     public synchronized void reset() {
         readings.clear();
     }
 
     /**
-     * 가장 최근에 측정된 센서값을 반환한다.
+     * 가장 최근에 측정된 센서값을 반환하는 메서드
      *
      * @return 최신 수분 %, 이력이 없으면 -1
      */
@@ -85,10 +85,18 @@ public class SensorHistory {
         return readings.get(readings.size() - 1).getValue();
     }
 
-    // ── private
-    // ──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
 
-    /** AppConfig.STABLE_HOURS 이내의 측정값 목록을 반환한다. (호출부가 이미 synchronized) */
+
+
+    
+
+    // ────── private ────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+    /**
+     * AppConfig.STABLE_HOURS 이내의 측정값 목록을 반환하는 메서드 
+     * 
+     *  @return 최근 AppConfig.STABLE_HOURS 시간 이내의 측정값 리스트 (없으면 빈 리스트)
+     */
     private List<SensorReading> getRecentReadings() {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(AppConfig.STABLE_HOURS);
         List<SensorReading> recent = new ArrayList<>();
@@ -100,15 +108,16 @@ public class SensorHistory {
     }
 
     /**
-     * AppConfig.STABLE_HOURS 를 초과한 오래된 기록을 제거해 메모리를 절약한다. (호출부가 이미 synchronized)
+     * readings 리스트에서 24시간이 지난 오래된 기록을 제거하는 메서드
+     * AppConfig.STABLE_HOURS 를 초과한 오래된 기록을 제거해 메모리를 절약하도록 했습니다
+     *
      */
     private void cleanOldReadings() {
         LocalDateTime cutoff = LocalDateTime.now().minusHours(AppConfig.STABLE_HOURS);
         readings.removeIf(r -> r.getTimestamp().isBefore(cutoff));
     }
 
-    // ── SensorReading (inner class)
-    // ────────────────────────────────────────────────────────────────────────────────────────────────────────────
+    // ── SensorReading (내부 클래스) ───────────────────────────────────────────────────────────────────────────────────────────────
     /**
      * 센서에서 읽은 단일 측정값과 측정 시각을 저장하는 데이터 클래스.
      * SensorHistory의 구현 세부사항이므로 외부에 노출하지 않도록 했습니다.

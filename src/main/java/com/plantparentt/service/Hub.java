@@ -182,7 +182,7 @@ public class Hub {
     public void checkPotNow(int pin) {
         PlantPot pot = plantPots.get(pin);
         if (pot == null)
-            return; // 해당 핀에 화분이 등록되어 있지 않을 경우에는 아무 작업도 하지 않음
+            return; // 해당 핀에 화분이 등록되어 있지 않을 경우에는 아무 작업도 하지 않도록 했습니다
 
         checkPot(pot); // 건조 판단 + 이력 갱신 + GUI 수분값 갱신
 
